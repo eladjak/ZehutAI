@@ -1,4 +1,4 @@
-from sim import *
+from plotting import *
 
 if __name__ == '__main__':
     similarity = Similarity()
@@ -6,4 +6,5 @@ if __name__ == '__main__':
     # similarity.methodScikitlearn()
     # similarity.methodBert()
     # similarity.methodRoBERTa()
+
 

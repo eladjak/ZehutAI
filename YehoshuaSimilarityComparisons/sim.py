@@ -21,7 +21,17 @@ class Similarity:
         self.nnModels = []
         self.texts = []
         self.methods = []
+        self.results = {}
 
+    def addModel(self, tokenizer, model, model_weights):
+        self.nnModels.append((tokenizer, model, model_weights))
+
+    def removeModel(self, model_weights):
+        for i in range(len(self.nnModels)):
+            tokenizer, model, model_weights = self.nnModels[i]
+            if model == model_weights or model_weights == model_weights:
+                self.nnModels.pop(i)
+                break
 
     def add_texts(self):
         return None
@@ -100,10 +110,10 @@ class Similarity:
              3. The user prompt
         """
         # Tokenizer
-        tokenizer = BertTokenizer.from_pretrained('bert-base-uncased', clean_up_tokenization_spaces=True)
+        tokenizer = tokenizer.from_pretrained(model_weights, clean_up_tokenization_spaces=True)
 
         # Load the BERT model
-        model = transformers.BertModel.from_pretrained('bert-base-uncased')
+        model = model.from_pretrained('bert-base-uncased')
 
         # Tokenize and encode the texts
         data = ["The movie is awesome. It was a good thriller",
@@ -129,11 +139,45 @@ class Similarity:
         for model_objects in self.nnModels:
             tokenizer, model, model_weights = model_objects
 
+            # Tokenize and encode the texts
+            data = ["The movie is awesome. It was a good thriller",
+                    "We are learning NLP throughg GeeksforGeeks",
+                    "The baby learned to walk in the 5th month itself"]
 
+            text2 = "The baby was laughing and palying"
+            tokenized2 = tokenizer(text2, return_tensors="pt", padding="max_length", return_attention_mask=True)
+            text_results = []
+            for text1 in data:
+                tokenized1 = tokenizer(text1, return_tensors="pt", padding="max_length", return_attention_mask=True)
 
+                # encoding1 = tokenizer.encode(text1[''], max_length=512, add_special_tokens=True, padding=True)
+                # encoding2 = tokenizer.encode(text2, max_length=512, add_special_tokens=True, padding=True)
+                # print(text1, text2)
+                # tokenized1 = tokenizer.tokenize(encoding1)
+                # print('tokenized1 ' + str(tokenized1))
 
+                embedding1 = model(tokenized1['input_ids'], attention_mask=tokenized1['attention_mask'])[
+                                 0].detach().numpy()[0, :, 0]
+                embedding2 = model(tokenized2['input_ids'], attention_mask=tokenized2['attention_mask'])[
+                                 0].detach().numpy()[0, :, 0]
 
+                # Calculate the cosine similarity between the embeddings
+                embedding1, embedding2 = np.square(embedding1.sum()), np.square(embedding2.sum())
+                similarity = cosine_similarity(embedding1, embedding2).round(3)
+                print(similarity, text1, ' | ', text2)
+                text_results.append((similarity, text1, text2))
+            self.results[model_weights] = text_results
 
+    def squared_sum(self, x):
+        """ return 3 rounded square rooted value """
+
+        return round(np.sqrt(sum([a * a for a in x])), 3)
+    def cos_similarity(self, x, y):
+        """ return cosine similarity between two lists """
+
+        numerator = sum(a * b for a, b in zip(x, y))
+        denominator = self.squared_sum(x) * self.squared_sum(y)
+        return round(numerator / float(denominator), 3)
 
     def methodBert(self):
         # Tokenizer
@@ -201,6 +245,8 @@ class Similarity:
 
 
 similarity = Similarity()
+similarity.addModel(BertTokenizer, transformers.BertModel, 'bert-base-uncased')
+similarity.runNNModels()
 # similarity.methodNLTK()
 # similarity.methodScikitlearn()
 # similarity.methodBert()

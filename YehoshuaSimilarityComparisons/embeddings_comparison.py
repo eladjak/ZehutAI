@@ -1,4 +1,6 @@
 from sentence_transformers import SentenceTransformer
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
 
 
 def compare_sentences(sentences):
@@ -12,6 +14,8 @@ def compare_sentences(sentences):
     """
     model = SentenceTransformer('sentence-transformers/paraphrase-multilingual-mpnet-base-v2')
     embeddings = model.encode(sentences)
+    model.clean_up_tokenization_spaces = True
+
     similarities = model.similarity(embeddings, embeddings)
     return float(similarities[0, 1])
 
@@ -26,3 +30,6 @@ def compare_sentences(sentences):
 #
 # for s in [sentences, sentences2, sentences3, sentences4]:
 #     print(s[0], s[1][::-1], ': ', str(compare_sentences(s)))
+
+
+
