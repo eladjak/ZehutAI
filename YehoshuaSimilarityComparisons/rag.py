@@ -22,14 +22,14 @@ def generate_queries(original_query):
 
     messages = [
         {"role": "user", "content": "איזה רוטב אהוב עליך?"},
-        {"role": "assistant",
+        {"role": "user",
          "content": f"{original_query}"},
         {"role": "user", "content": "האם יש לך מתכונים למיונז?"}
     ]
 
     encoded = tokenizer.apply_chat_template(messages, return_tensors="pt").to(device)
 
-    generated_ids = model.generate(encoded, max_new_tokens=50, do_sample=True)
+    generated_ids = model.generate(encoded, input_ids, max_new_tokens=50, do_sample=True)
     decoded = tokenizer.batch_decode(generated_ids)
 
     generated_queries = decoded[0].strip().split("\n")
