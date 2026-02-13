@@ -1,7 +1,5 @@
 import os
-# import openai
 import random
-# openai.api_key = 'REMOVED_LEAKED_KEY'
 from embeddings_comparison import compare_sentences
 
 
