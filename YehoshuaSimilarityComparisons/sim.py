@@ -1,254 +1,395 @@
+"""Similarity comparison class supporting multiple NLP methods.
+
+Compares text similarity using NLTK/Doc2Vec, TF-IDF (scikit-learn),
+BERT, and RoBERTa embeddings.
+"""
+
+from __future__ import annotations
+
+from typing import Any
+
+import numpy as np
+import transformers
 from gensim.models.doc2vec import Doc2Vec, TaggedDocument
 from nltk.tokenize import word_tokenize
-import nltk
-# nltk.download('punkt')
-# nltk.download('punkt_tab')
-from scipy.spatial import distance
-import sklearn
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
-import transformers
 from transformers import BertTokenizer, RobertaTokenizer
-import numpy as np
-import tensorflow as tf
-import matplotlib
 
+# Default sample data used across methods
+DEFAULT_DATA: list[str] = [
+    "The movie is awesome. It was a good thriller",
+    "We are learning NLP through GeeksforGeeks",
+    "The baby learned to walk in the 5th month itself",
+]
+
+DEFAULT_QUERY: str = "The baby was laughing and playing"
 
 
 class Similarity:
-    def __init__(self):
-        self.methods = [self.methodNLTK]
-        self.nnModels = []
-        self.texts = []
-        self.methods = []
-        self.results = {}
+    """Multi-method text similarity comparison engine.
 
-    def addModel(self, tokenizer, model, model_weights):
+    Supports Doc2Vec, TF-IDF, BERT, and RoBERTa similarity methods.
+    Neural network models can be registered and run in batch.
+    """
+
+    def __init__(self) -> None:
+        self.nnModels: list[tuple[Any, Any, str]] = []
+        self.texts: list[str] = []
+        self.methods: list[Any] = []
+        self.results: dict[str, list[tuple[float, str, str]]] = {}
+
+    def addModel(
+        self, tokenizer: Any, model: Any, model_weights: str
+    ) -> None:
+        """Register a neural network model for batch comparison.
+
+        Args:
+            tokenizer: Tokenizer class (e.g., BertTokenizer).
+            model: Model class (e.g., BertModel).
+            model_weights: Pretrained weights identifier (e.g., 'bert-base-uncased').
+        """
         self.nnModels.append((tokenizer, model, model_weights))
 
-    def removeModel(self, model_weights):
+    def removeModel(self, target_weights: str) -> None:
+        """Remove a registered model by its weights identifier.
+
+        Args:
+            target_weights: The pretrained weights identifier to remove.
+        """
         for i in range(len(self.nnModels)):
-            tokenizer, model, model_weights = self.nnModels[i]
-            if model == model_weights or model_weights == model_weights:
+            _tokenizer, _model, model_weights = self.nnModels[i]
+            if model_weights == target_weights:
                 self.nnModels.pop(i)
                 break
 
-    def add_texts(self):
-        return None
+    def add_texts(self, texts: list[str] | None = None) -> None:
+        """Set custom texts for comparison.
 
+        Args:
+            texts: List of texts to use in comparisons.
+        """
+        if texts is not None:
+            self.texts = texts
 
-    def compareMethods(self, text1=None, text2=None):
+    def compareMethods(self) -> None:
+        """Run all registered comparison methods and print results."""
         for method in self.methods:
             result = method()
             print(result)
 
-    def methodNLTK(self, data=None):
-        # Sample data
-        data = ["The movie is awesome. It was a good thriller",
-                "We are learning NLP throughg GeeksforGeeks",
-                "The baby learned to walk in the 5th month itself"]
+    def methodNLTK(
+        self,
+        data: list[str] | None = None,
+        query: str = DEFAULT_QUERY,
+    ) -> list[tuple[str, float]]:
+        """Compare texts using Doc2Vec trained on the provided data.
 
-        # Tokenizing the data
+        Args:
+            data: Source documents to train Doc2Vec on. Defaults to sample data.
+            query: Query text to find similar documents for.
+
+        Returns:
+            List of (document_index, similarity_score) tuples.
+        """
+        if data is None:
+            data = DEFAULT_DATA
+
         tokenized_data = [word_tokenize(document.lower()) for document in data]
+        tagged_data = [
+            TaggedDocument(words=words, tags=[str(idx)])
+            for idx, words in enumerate(tokenized_data)
+        ]
 
-        # Creating TaggedDocument objects
-        tagged_data = [TaggedDocument(words=words, tags=[str(idx)])
-                       for idx, words in enumerate(tokenized_data)]
-
-        # Training the Doc2Vec model
-        model = Doc2Vec(vector_size=100, window=2, min_count=1, workers=4, epochs=1000)
+        model = Doc2Vec(
+            vector_size=100, window=2, min_count=1, workers=4, epochs=1000
+        )
         model.build_vocab(tagged_data)
-        model.train(tagged_data, total_examples=model.corpus_count,
-                    epochs=model.epochs)
+        model.train(
+            tagged_data, total_examples=model.corpus_count, epochs=model.epochs
+        )
 
-        # Infer vector for a new document
-        new_document = "The baby was laughing and palying"
-        print('Original Document:', new_document)
-
-        inferred_vector = model.infer_vector(word_tokenize(new_document.lower()))
-
-        # Find most similar documents
+        inferred_vector = model.infer_vector(word_tokenize(query.lower()))
         similar_documents = model.dv.most_similar(
-            [inferred_vector], topn=len(model.dv))
+            [inferred_vector], topn=len(model.dv)
+        )
 
-        # Print the most similar documents
-        for index, score in similar_documents:
-            print(f"Document {index}: Similarity Score: {score}")
-            print(f"Document Text: {data[int(index)]}")
-            print()
-        return None
+        return similar_documents
 
-    def methodScikitlearn(self):
+    def methodScikitlearn(
+        self,
+        data: list[str] | None = None,
+        query: str = DEFAULT_QUERY,
+    ) -> list[tuple[str, float]]:
+        """Compare texts using TF-IDF cosine similarity.
 
-        data = ["The movie is awesome. It was a good thriller",
-                "We are learning NLP throughg GeeksforGeeks",
-                "The baby learned to walk in the 5th month itself"]
+        Args:
+            data: Source documents to compare against. Defaults to sample data.
+            query: Query text to compare.
 
-        text2 = "The baby was laughing and palying"
+        Returns:
+            List of (text, similarity_score) tuples.
+        """
+        if data is None:
+            data = DEFAULT_DATA
 
-        # Convert the texts into TF-IDF vectors
         vectorizer = TfidfVectorizer()
-        print('text2: ' + text2)
-        for text1 in data:
-            vectors = vectorizer.fit_transform([text1, text2])
-            # Calculate the cosine similarity between the vectors
+        results: list[tuple[str, float]] = []
+        for text in data:
+            vectors = vectorizer.fit_transform([text, query])
             similarity = cosine_similarity(vectors)
-            print(text1 + ' ' + str(similarity[1, 0]))
+            results.append((text, float(similarity[1, 0])))
+        return results
 
+    def methodNNEmbeddings(
+        self,
+        tokenizer: Any,
+        model: Any,
+        model_weights: str,
+        data: list[str] | None = None,
+        query: str = DEFAULT_QUERY,
+    ) -> list[tuple[float, str, str]]:
+        """Find distances between query and source texts using NN embeddings.
 
-    def methodNNEmbeddings(self, tokenizer, model, model_weights):
+        Args:
+            tokenizer: The tokenizer class (e.g., BertTokenizer).
+            model: The model class (e.g., BertModel).
+            model_weights: Pretrained weights identifier (e.g., 'bert-base-uncased').
+            data: Source texts to compare against. Defaults to sample data.
+            query: Query text to compare.
+
+        Returns:
+            List of (similarity, source_text, query_text) tuples.
         """
-        Finds the distances between the user input and the source texts
-        :param tokenizer: The tokenizer for the model (e.g. BertTokenizer)
-        :param model: the model (e.g. BertModel)
-        :param model_weights: str
-            The pretrained weights for the model (e.g. 'bert-base-uncased)
-        :return: list[Tuple (float, str, str)]
-            List of Tuples holding information regarding the user prompt and each text:
-             1. The distance from the embeddings of the user prompt and each text
-             2. The text
-             3. The user prompt
-        """
-        # Tokenizer
-        tokenizer = tokenizer.from_pretrained(model_weights, clean_up_tokenization_spaces=True)
+        if data is None:
+            data = DEFAULT_DATA
 
-        # Load the BERT model
-        model = model.from_pretrained('bert-base-uncased')
+        tokenizer = tokenizer.from_pretrained(
+            model_weights, clean_up_tokenization_spaces=True
+        )
+        model = model.from_pretrained(model_weights)
 
-        # Tokenize and encode the texts
-        data = ["The movie is awesome. It was a good thriller",
-                "We are learning NLP throughg GeeksforGeeks",
-                "The baby learned to walk in the 5th month itself"]
+        tokenized_query = tokenizer(
+            query,
+            return_tensors="pt",
+            padding="max_length",
+            return_attention_mask=True,
+        )
 
-        user_prompt = "The baby was laughing and palying"
-        tokenized_user_prompt = tokenizer(user_prompt, return_tensors="pt", padding="max_length", return_attention_mask=True)
-
-        texts_list = []
+        texts_list: list[tuple[float, str, str]] = []
         for target_text in data:
-            tokenized_target_text = tokenizer(target_text, return_tensors="pt", padding="max_length", return_attention_mask=True)
+            tokenized_target = tokenizer(
+                target_text,
+                return_tensors="pt",
+                padding="max_length",
+                return_attention_mask=True,
+            )
 
-            embedding1 = model(tokenized_target_text['input_ids'], attention_mask=tokenized_target_text['attention_mask'])[0].detach().numpy()[0, :, 0]
-            embedding2 = model(tokenized_user_prompt['input_ids'], attention_mask=tokenized_user_prompt['attention_mask'])[0].detach().numpy()[0, :, 0]
+            embedding1 = model(
+                tokenized_target["input_ids"],
+                attention_mask=tokenized_target["attention_mask"],
+            )[0].detach().numpy()[0, :, 0]
+            embedding2 = model(
+                tokenized_query["input_ids"],
+                attention_mask=tokenized_query["attention_mask"],
+            )[0].detach().numpy()[0, :, 0]
 
-            # Calculate the cosine similarity between the embeddings
-            similarity = np.dot(embedding1.T, embedding2) / (np.linalg.norm(embedding1.T) * np.linalg.norm(embedding2))
-            texts_list.append((similarity, target_text, user_prompt))
+            similarity = float(
+                np.dot(embedding1.T, embedding2)
+                / (np.linalg.norm(embedding1.T) * np.linalg.norm(embedding2))
+            )
+            texts_list.append((similarity, target_text, query))
         return texts_list
 
-    def runNNModels(self):
+    def runNNModels(
+        self,
+        data: list[str] | None = None,
+        query: str = DEFAULT_QUERY,
+    ) -> None:
+        """Run all registered NN models and store results.
+
+        Args:
+            data: Source texts to compare against. Defaults to sample data.
+            query: Query text to compare.
+        """
+        if data is None:
+            data = DEFAULT_DATA
+
         for model_objects in self.nnModels:
             tokenizer, model, model_weights = model_objects
 
-            # Tokenize and encode the texts
-            data = ["The movie is awesome. It was a good thriller",
-                    "We are learning NLP throughg GeeksforGeeks",
-                    "The baby learned to walk in the 5th month itself"]
+            tokenized_query = tokenizer(
+                query,
+                return_tensors="pt",
+                padding="max_length",
+                return_attention_mask=True,
+            )
+            text_results: list[tuple[float, str, str]] = []
+            for text in data:
+                tokenized_text = tokenizer(
+                    text,
+                    return_tensors="pt",
+                    padding="max_length",
+                    return_attention_mask=True,
+                )
 
-            text2 = "The baby was laughing and palying"
-            tokenized2 = tokenizer(text2, return_tensors="pt", padding="max_length", return_attention_mask=True)
-            text_results = []
-            for text1 in data:
-                tokenized1 = tokenizer(text1, return_tensors="pt", padding="max_length", return_attention_mask=True)
+                embedding1 = (
+                    model(
+                        tokenized_text["input_ids"],
+                        attention_mask=tokenized_text["attention_mask"],
+                    )[0]
+                    .detach()
+                    .numpy()[0, :, 0]
+                )
+                embedding2 = (
+                    model(
+                        tokenized_query["input_ids"],
+                        attention_mask=tokenized_query["attention_mask"],
+                    )[0]
+                    .detach()
+                    .numpy()[0, :, 0]
+                )
 
-                # encoding1 = tokenizer.encode(text1[''], max_length=512, add_special_tokens=True, padding=True)
-                # encoding2 = tokenizer.encode(text2, max_length=512, add_special_tokens=True, padding=True)
-                # print(text1, text2)
-                # tokenized1 = tokenizer.tokenize(encoding1)
-                # print('tokenized1 ' + str(tokenized1))
-
-                embedding1 = model(tokenized1['input_ids'], attention_mask=tokenized1['attention_mask'])[
-                                 0].detach().numpy()[0, :, 0]
-                embedding2 = model(tokenized2['input_ids'], attention_mask=tokenized2['attention_mask'])[
-                                 0].detach().numpy()[0, :, 0]
-
-                # Calculate the cosine similarity between the embeddings
-                embedding1, embedding2 = np.square(embedding1.sum()), np.square(embedding2.sum())
-                similarity = cosine_similarity(embedding1, embedding2).round(3)
-                print(similarity, text1, ' | ', text2)
-                text_results.append((similarity, text1, text2))
+                embedding1_sq = np.square(embedding1.sum())
+                embedding2_sq = np.square(embedding2.sum())
+                similarity = cosine_similarity(
+                    embedding1_sq.reshape(1, -1), embedding2_sq.reshape(1, -1)
+                ).round(3)
+                text_results.append((float(similarity[0, 0]), text, query))
             self.results[model_weights] = text_results
 
-    def squared_sum(self, x):
-        """ return 3 rounded square rooted value """
+    @staticmethod
+    def squared_sum(x: list[float] | np.ndarray) -> float:
+        """Return the square root of the sum of squares, rounded to 3 decimal places.
 
-        return round(np.sqrt(sum([a * a for a in x])), 3)
-    def cos_similarity(self, x, y):
-        """ return cosine similarity between two lists """
+        Args:
+            x: Input vector.
 
+        Returns:
+            L2 norm of the vector, rounded.
+        """
+        return round(float(np.sqrt(sum(a * a for a in x))), 3)
+
+    def cos_similarity(
+        self, x: list[float] | np.ndarray, y: list[float] | np.ndarray
+    ) -> float:
+        """Return cosine similarity between two vectors.
+
+        Args:
+            x: First vector.
+            y: Second vector.
+
+        Returns:
+            Cosine similarity score.
+        """
         numerator = sum(a * b for a, b in zip(x, y))
         denominator = self.squared_sum(x) * self.squared_sum(y)
         return round(numerator / float(denominator), 3)
 
-    def methodBert(self):
-        # Tokenizer
-        tokenizer = BertTokenizer.from_pretrained('bert-base-uncased', clean_up_tokenization_spaces=True)
+    def methodBert(
+        self,
+        data: list[str] | None = None,
+        query: str = DEFAULT_QUERY,
+    ) -> list[tuple[float, str, str]]:
+        """Compare texts using BERT embeddings.
 
-        # Load the BERT model
-        model = transformers.BertModel.from_pretrained('bert-base-uncased')
+        Args:
+            data: Source texts to compare against. Defaults to sample data.
+            query: Query text to compare.
 
-        # Tokenize and encode the texts
-        data = ["The movie is awesome. It was a good thriller",
-                "We are learning NLP throughg GeeksforGeeks",
-                "The baby learned to walk in the 5th month itself"]
+        Returns:
+            List of (similarity, source_text, query_text) tuples.
+        """
+        if data is None:
+            data = DEFAULT_DATA
 
-        text2 = "The baby was laughing and palying"
-        tokenized2 = tokenizer(text2, return_tensors="pt", padding="max_length", return_attention_mask=True)
+        tokenizer = BertTokenizer.from_pretrained(
+            "bert-base-uncased", clean_up_tokenization_spaces=True
+        )
+        model = transformers.BertModel.from_pretrained("bert-base-uncased")
 
-        for text1 in data:
-            tokenized1 = tokenizer(text1, return_tensors="pt", padding="max_length", return_attention_mask=True)
+        tokenized_query = tokenizer(
+            query,
+            return_tensors="pt",
+            padding="max_length",
+            return_attention_mask=True,
+        )
 
-            # encoding1 = tokenizer.encode(text1[''], max_length=512, add_special_tokens=True, padding=True)
-            # encoding2 = tokenizer.encode(text2, max_length=512, add_special_tokens=True, padding=True)
-            # print(text1, text2)
-            # tokenized1 = tokenizer.tokenize(encoding1)
-            # print('tokenized1 ' + str(tokenized1))
+        results: list[tuple[float, str, str]] = []
+        for text in data:
+            tokenized_text = tokenizer(
+                text,
+                return_tensors="pt",
+                padding="max_length",
+                return_attention_mask=True,
+            )
 
-            embedding1 = model(tokenized1['input_ids'], attention_mask=tokenized1['attention_mask'])[0].detach().numpy()[0, :, 0]
-            embedding2 = model(tokenized2['input_ids'], attention_mask=tokenized2['attention_mask'])[0].detach().numpy()[0, :, 0]
+            embedding1 = model(
+                tokenized_text["input_ids"],
+                attention_mask=tokenized_text["attention_mask"],
+            )[0].detach().numpy()[0, :, 0]
+            embedding2 = model(
+                tokenized_query["input_ids"],
+                attention_mask=tokenized_query["attention_mask"],
+            )[0].detach().numpy()[0, :, 0]
 
-            # Calculate the cosine similarity between the embeddings
-            similarity = np.dot(embedding1.T, embedding2) / (np.linalg.norm(embedding1.T) * np.linalg.norm(embedding2))
-            print(similarity, text1, ' | ', text2)
+            similarity = float(
+                np.dot(embedding1.T, embedding2)
+                / (np.linalg.norm(embedding1.T) * np.linalg.norm(embedding2))
+            )
+            results.append((similarity, text, query))
+        return results
 
-    def methodRoBERTa(self):
-        # Tokenizer
-        tokenizer = RobertaTokenizer.from_pretrained('roberta-base', clean_up_tokenization_spaces=True)
+    def methodRoBERTa(
+        self,
+        data: list[str] | None = None,
+        query: str = DEFAULT_QUERY,
+    ) -> list[tuple[float, str, str]]:
+        """Compare texts using RoBERTa embeddings.
 
-        # Load the BERT model
-        model = transformers.RobertaModel.from_pretrained('roberta-base')
+        Args:
+            data: Source texts to compare against. Defaults to sample data.
+            query: Query text to compare.
 
-        # Tokenize and encode the texts
-        data = ["The movie is awesome. It was a good thriller",
-                "We are learning NLP throughg GeeksforGeeks",
-                "The baby learned to walk in the 5th month itself"]
+        Returns:
+            List of (similarity, source_text, query_text) tuples.
+        """
+        if data is None:
+            data = DEFAULT_DATA
 
-        text2 = "The baby was laughing and palying"
-        tokenized2 = tokenizer(text2, return_tensors="pt", padding="max_length", return_attention_mask=True)
+        tokenizer = RobertaTokenizer.from_pretrained(
+            "roberta-base", clean_up_tokenization_spaces=True
+        )
+        model = transformers.RobertaModel.from_pretrained("roberta-base")
 
-        for text1 in data:
-            tokenized1 = tokenizer(text1, return_tensors="pt", padding="max_length", return_attention_mask=True)
+        tokenized_query = tokenizer(
+            query,
+            return_tensors="pt",
+            padding="max_length",
+            return_attention_mask=True,
+        )
 
-            # encoding1 = tokenizer.encode(text1[''], max_length=512, add_special_tokens=True, padding=True)
-            # encoding2 = tokenizer.encode(text2, max_length=512, add_special_tokens=True, padding=True)
-            # print(text1, text2)
-            # tokenized1 = tokenizer.tokenize(encoding1)
-            # print('tokenized1 ' + str(tokenized1))
+        results: list[tuple[float, str, str]] = []
+        for text in data:
+            tokenized_text = tokenizer(
+                text,
+                return_tensors="pt",
+                padding="max_length",
+                return_attention_mask=True,
+            )
 
-            embedding1 = model(tokenized1['input_ids'], attention_mask=tokenized1['attention_mask'])[0].detach().numpy()[0, :, 0]
-            embedding2 = model(tokenized2['input_ids'], attention_mask=tokenized2['attention_mask'])[0].detach().numpy()[0, :, 0]
-            # Calculate the cosine similarity between the embeddings
-            similarity = np.dot(embedding1.T, embedding2) / (np.linalg.norm(embedding1) * np.linalg.norm(embedding2))
-            print(similarity, text1, ' | ', text2)
+            embedding1 = model(
+                tokenized_text["input_ids"],
+                attention_mask=tokenized_text["attention_mask"],
+            )[0].detach().numpy()[0, :, 0]
+            embedding2 = model(
+                tokenized_query["input_ids"],
+                attention_mask=tokenized_query["attention_mask"],
+            )[0].detach().numpy()[0, :, 0]
 
-    # def methodSBERT(self):
-
-
-
-similarity = Similarity()
-similarity.addModel(BertTokenizer, transformers.BertModel, 'bert-base-uncased')
-similarity.runNNModels()
-# similarity.methodNLTK()
-# similarity.methodScikitlearn()
-# similarity.methodBert()
-# similarity.methodRoBERTa()
-
+            similarity = float(
+                np.dot(embedding1.T, embedding2)
+                / (np.linalg.norm(embedding1) * np.linalg.norm(embedding2))
+            )
+            results.append((similarity, text, query))
+        return results

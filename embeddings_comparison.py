@@ -1,28 +1,36 @@
+"""Sentence comparison utility using multilingual sentence-transformers."""
+
+from __future__ import annotations
+
 from sentence_transformers import SentenceTransformer
 
+# Cache model instance at module level to avoid re-loading on every call
+_model: SentenceTransformer | None = None
 
-def compare_sentences(sentences):
+MODEL_NAME = "sentence-transformers/paraphrase-multilingual-mpnet-base-v2"
+
+
+def _get_model() -> SentenceTransformer:
+    """Return cached SentenceTransformer model, loading it on first call."""
+    global _model
+    if _model is None:
+        _model = SentenceTransformer(MODEL_NAME)
+    return _model
+
+
+def compare_sentences(sentences: list[str]) -> float:
+    """Compare two sentences and return their cosine similarity.
+
+    Uses sentence-transformers/paraphrase-multilingual-mpnet-base-v2 for
+    multilingual embedding, supporting 50+ languages including Hebrew.
+
+    Args:
+        sentences: List of exactly 2 sentences to compare.
+
+    Returns:
+        Cosine similarity score between -1.0 and 1.0.
     """
-    Takes in two sentences, returns their cosine similarity using
-    sentence-transformers/paraphrase-multilingual-mpnet-base-v2
-    :param sentences: list [str, str]
-        list of 2 sentences to be compared
-    :return: float
-        cosine similarity
-    """
-    model = SentenceTransformer('sentence-transformers/paraphrase-multilingual-mpnet-base-v2')
+    model = _get_model()
     embeddings = model.encode(sentences)
     similarities = model.similarity(embeddings, embeddings)
     return float(similarities[0, 1])
-
-
-# sentences = ["This is an example sentence", "זה משפט כדוגמה "]
-#
-# sentences2 = ["This is an example sentence", "לעשות משפט וחסד"]
-#
-# sentences3 = ["This is an example sentence", "תכתוב פה מה שאני כותב"]
-#
-# sentences4 = ["This is an example sentence", "אני רוצה לשתות מים"]
-#
-# for s in [sentences, sentences2, sentences3, sentences4]:
-#     print(s[0], s[1][::-1], ': ', str(compare_sentences(s)))

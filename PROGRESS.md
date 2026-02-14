@@ -1,12 +1,13 @@
 # ZehutAI - Progress
 
 ## Status: Active (Research/Prototype)
-## Last Updated: 2026-02-13
+## Last Updated: 2026-02-14
 
 ## Current State
 Early-stage research project exploring Hebrew/multilingual text similarity and RAG pipelines.
-Code exists but has several bugs, no tests, no type hints, and needs structural cleanup.
-Git repo exists with remote at github.com/eladjak/ZehutAI.git.
+Major code quality improvements applied: all 3 runtime bugs fixed, type hints added,
+module-level side effects removed, model caching implemented, debug prints cleaned up,
+and proper environment variable handling added. No secrets remain in source code.
 
 ## What Was Done
 - [x] Initial repo setup with GitHub remote
@@ -19,70 +20,100 @@ Git repo exists with remote at github.com/eladjak/ZehutAI.git.
 - [x] Created requirements.txt with all dependencies
 - [x] Updated README.md with full setup instructions
 - [x] Updated CLAUDE.md with project-specific dev instructions
-- [x] SECURITY FIX: Removed leaked OpenAI API key from rag.py
+- [x] SECURITY FIX: Removed leaked OpenAI API key from rag.py (2026-02-13)
+- [x] Fixed all 3 runtime bugs (2026-02-14)
+- [x] Added type hints and docstrings to all functions (2026-02-14)
+- [x] Cached model instances in embeddings_comparison.py (2026-02-14)
+- [x] Removed unused tensorflow import from sim.py (2026-02-14)
+- [x] Removed module-level side effects from sim.py (2026-02-14)
+- [x] Fixed wildcard import in main.py (2026-02-14)
+- [x] Cleaned up debug print statements from simple_rag.py (2026-02-14)
+- [x] Added __init__.py to make YehoshuaSimilarityComparisons a package (2026-02-14)
+- [x] Created .env.example with documented environment variables (2026-02-14)
+- [x] Added python-dotenv to requirements.txt (2026-02-14)
+- [x] Fixed .gitignore duplicate .env entry (2026-02-14)
+- [x] Proper device detection pattern (module-level, no dangling torch.device) (2026-02-14)
 
-## Code Review Findings (2026-02-13)
+## Bug Fixes Applied (2026-02-14)
 
-### CRITICAL - Security
-1. **LEAKED API KEY** in `YehoshuaSimilarityComparisons/rag.py` line 4
-   - OpenAI API key was committed (commented out but visible in git history)
-   - **ACTION REQUIRED: Rotate this key immediately on OpenAI dashboard**
-   - Key removed from source code in this session
+### CRITICAL - rag.py `reciprocal_rank_fusion()` (line 52-56)
+- **Problem:** Loop variable was `docc` but code referenced `doc` -> NameError at runtime
+- **Fix:** Changed loop variable to `doc` to match all references
 
-### HIGH - Bugs
-1. **rag.py:55** - `reciprocal_rank_fusion()` uses variable `doc` but the loop variable is `docc`
-   - Will cause `NameError` at runtime
-2. **rag.py:32** - `generate_queries()` passes undefined `input_ids` to `model.generate()`
-   - Will cause `NameError` at runtime
-3. **sim.py:32** - `removeModel()` compares `model_weights` to itself (`model_weights == model_weights`)
-   - Should compare `model` parameter to `model_weights` in tuple - always evaluates True
+### CRITICAL - rag.py `generate_queries()` (line 30)
+- **Problem:** Passed undefined `input_ids` as second argument to `model.generate()`
+- **Fix:** Removed the undefined `input_ids` argument; `encoded` already contains the input
 
-### MEDIUM - Code Quality
-1. **Model re-instantiation** - `compare_sentences()` creates a new SentenceTransformer on every call
-   - Should cache/reuse the model instance
-2. **Hardcoded test data** - `sim.py` methods have hardcoded sample texts
-   - Should accept parameters
-3. **Duplicate code** - `embeddings_comparison.py` exists in both root and subdirectory
-4. **No type hints** on any functions
-5. **No docstrings** on most functions (only `compare_sentences` and `methodNNEmbeddings` have them)
-6. **Wildcard import** - `main.py` uses `from plotting import *`
-7. **Unused imports** - `tensorflow` imported in sim.py but never used
-8. **Module-level side effects** - `sim.py` runs code at module level (line 247-254)
-9. **torch.device()` calls without assignment** - Device objects created but not stored in rag.py and simple_rag.py
+### HIGH - sim.py `removeModel()` (line 31-32)
+- **Problem:** Compared `model_weights == model_weights` (self-comparison, always True)
+  and also shadowed the parameter name with the unpacked tuple variable
+- **Fix:** Renamed parameter to `target_weights`, compare `model_weights == target_weights`
 
-### LOW - Style
-1. No consistent naming convention (camelCase mixed with snake_case)
-2. Debug print statements throughout (`print('&&&&&&&&&&&&')` in simple_rag.py)
-3. Commented-out code blocks in multiple files
-4. Typos in sample data ("palying", "throughg")
+## Code Quality Improvements (2026-02-14)
+
+### Security Hardening
+- Verified no API keys/secrets remain anywhere in source code
+- Created `.env.example` documenting required environment variables
+- Added `python-dotenv` to requirements for proper env var loading
+- Fixed `.gitignore` duplicate `.env` entry
+
+### Type Hints & Documentation
+- Added `from __future__ import annotations` to all files
+- Added type hints to all function signatures
+- Added Google-style docstrings to all functions
+- Added module-level docstrings to all files
+
+### Model Caching
+- Both `embeddings_comparison.py` files now cache the SentenceTransformer model
+  at module level, avoiding re-instantiation on every `compare_sentences()` call
+
+### Code Cleanup
+- Removed unused `tensorflow` import from sim.py
+- Removed module-level side effects from sim.py (was auto-running on import)
+- Replaced wildcard import `from plotting import *` with explicit import
+- Removed debug print statements (`print('&&&&&&&&&&&&')`, `print('******************')`)
+- Removed commented-out code blocks
+- Removed unused imports (BertTokenizerFast, BertModel, AutoModelForCausalLM from simple_rag.py)
+- Extracted hardcoded sample data into module-level constants (DEFAULT_DATA, DEFAULT_QUERY)
+- All methods now accept optional `data` and `query` parameters instead of hardcoding
+
+### Device Handling
+- Replaced fragmented device detection (torch.device() without assignment) with
+  clean module-level `device: str = "cuda" if torch.cuda.is_available() else "cpu"`
 
 ## Next Steps
-1. **URGENT: Rotate the leaked OpenAI API key**
-2. Fix the 3 runtime bugs (rag.py variables, sim.py removeModel)
-3. Add type hints to all functions
-4. Cache model instances (singleton pattern or module-level)
-5. Extract hardcoded test data into configurable parameters
-6. Remove duplicate embeddings_comparison.py (keep one, import from there)
-7. Add `__init__.py` to make YehoshuaSimilarityComparisons a proper package
-8. Add unit tests (at least for compare_sentences and vector_search)
-9. Remove unused imports (tensorflow)
-10. Clean up debug print statements
-11. Consider restructuring into a proper Python package with src/ layout
+1. **URGENT: Rotate the leaked OpenAI API key** (still in git history!)
+2. Consider using BFG Repo Cleaner to remove the key from git history
+3. Add unit tests for `compare_sentences()`, `vector_search()`, `reciprocal_rank_fusion()`
+4. Remove duplicate `embeddings_comparison.py` (keep one canonical location, import from there)
+5. Consider restructuring into a proper Python package with `src/` layout
+6. Add a `pyproject.toml` for modern Python packaging
+7. Set up CI/CD (GitHub Actions for linting + type checking)
 
 ## Key Decisions Made
 - Using sentence-transformers/paraphrase-multilingual-mpnet-base-v2 as primary model (good Hebrew support)
 - Exploring DictaLM 2.0 for Hebrew text generation
 - RAG approach: query expansion -> vector search -> reciprocal rank fusion
+- Module-level model caching over class-based singleton (simpler for research code)
+- Google-style docstrings for consistency
 
-## Files Modified (2026-02-13)
-- `.gitignore` - Created (Python-specific ignores)
-- `requirements.txt` - Created (all project dependencies)
-- `README.md` - Rewritten with full documentation
-- `CLAUDE.md` - Updated with accurate project info and known issues
-- `PROGRESS.md` - Full rewrite with code review findings
-- `YehoshuaSimilarityComparisons/rag.py` - Removed leaked API key
+## Files Modified (2026-02-14)
+- `embeddings_comparison.py` - Added model caching, type hints, docstrings
+- `YehoshuaSimilarityComparisons/embeddings_comparison.py` - Same improvements
+- `YehoshuaSimilarityComparisons/rag.py` - Fixed 2 runtime bugs, added type hints/docstrings, cleaned up
+- `YehoshuaSimilarityComparisons/sim.py` - Fixed removeModel bug, removed tensorflow, removed side effects, added types
+- `YehoshuaSimilarityComparisons/main.py` - Fixed wildcard import, added docstring
+- `YehoshuaSimilarityComparisons/plotting.py` - Cleaned up, added docstring and type hints
+- `YehoshuaSimilarityComparisons/simple_rag.py` - Removed debug prints, cleaned up imports/device handling
+- `YehoshuaSimilarityComparisons/ragtest.py` - Cleaned up device handling, added docstring
+- `YehoshuaSimilarityComparisons/__init__.py` - Created (new file)
+- `.env.example` - Created (new file)
+- `.gitignore` - Fixed duplicate .env entry
+- `requirements.txt` - Added python-dotenv
+- `PROGRESS.md` - Updated with all changes
 
 ## Notes for Next Session
 - The leaked API key is still in git history - consider using `git filter-branch` or BFG Repo Cleaner
-- Start with fixing the 3 runtime bugs before adding new features
-- The project mixes research/experimentation scripts - consider separating library code from experiments
+- The project still has two copies of embeddings_comparison.py - consolidate in next session
+- Consider adding a conftest.py and basic pytest tests
+- sim.py methods still create models on every call (BERT, RoBERTa) - could add caching
