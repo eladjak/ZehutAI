@@ -1,40 +1,23 @@
-"""Sentence comparison utility using multilingual sentence-transformers."""
+"""Re-export from the canonical embeddings_comparison module.
+
+This avoids maintaining duplicate code. The canonical version lives at
+the project root: ``embeddings_comparison.py``.
+"""
 
 from __future__ import annotations
 
-import warnings
+import sys
+from pathlib import Path
 
-from sentence_transformers import SentenceTransformer
+# Ensure project root is on sys.path so the canonical module is importable
+_project_root = str(Path(__file__).resolve().parent.parent)
+if _project_root not in sys.path:
+    sys.path.insert(0, _project_root)
 
-warnings.simplefilter(action="ignore", category=FutureWarning)
+# Re-export public API
+from embeddings_comparison import (  # noqa: E402
+    MODEL_NAME,
+    compare_sentences,
+)
 
-# Cache model instance at module level to avoid re-loading on every call
-_model: SentenceTransformer | None = None
-
-MODEL_NAME = "sentence-transformers/paraphrase-multilingual-mpnet-base-v2"
-
-
-def _get_model() -> SentenceTransformer:
-    """Return cached SentenceTransformer model, loading it on first call."""
-    global _model
-    if _model is None:
-        _model = SentenceTransformer(MODEL_NAME)
-    return _model
-
-
-def compare_sentences(sentences: list[str]) -> float:
-    """Compare two sentences and return their cosine similarity.
-
-    Uses sentence-transformers/paraphrase-multilingual-mpnet-base-v2 for
-    multilingual embedding, supporting 50+ languages including Hebrew.
-
-    Args:
-        sentences: List of exactly 2 sentences to compare.
-
-    Returns:
-        Cosine similarity score between -1.0 and 1.0.
-    """
-    model = _get_model()
-    embeddings = model.encode(sentences)
-    similarities = model.similarity(embeddings, embeddings)
-    return float(similarities[0, 1])
+__all__ = ["compare_sentences", "MODEL_NAME"]

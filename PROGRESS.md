@@ -1,13 +1,13 @@
 # ZehutAI - Progress
 
 ## Status: Active (Research/Prototype)
-## Last Updated: 2026-02-14
+## Last Updated: 2026-02-15
 
 ## Current State
-Early-stage research project exploring Hebrew/multilingual text similarity and RAG pipelines.
-Major code quality improvements applied: all 3 runtime bugs fixed, type hints added,
-module-level side effects removed, model caching implemented, debug prints cleaned up,
-and proper environment variable handling added. No secrets remain in source code.
+Research project for Hebrew/multilingual text similarity and RAG pipelines.
+All 3 original runtime bugs fixed. Comprehensive test suite added (60 tests, all passing).
+Duplicate code consolidated. Modern Python packaging via pyproject.toml.
+Input validation added to public API. Code quality significantly improved.
 
 ## What Was Done
 - [x] Initial repo setup with GitHub remote
@@ -32,7 +32,15 @@ and proper environment variable handling added. No secrets remain in source code
 - [x] Created .env.example with documented environment variables (2026-02-14)
 - [x] Added python-dotenv to requirements.txt (2026-02-14)
 - [x] Fixed .gitignore duplicate .env entry (2026-02-14)
-- [x] Proper device detection pattern (module-level, no dangling torch.device) (2026-02-14)
+- [x] Proper device detection pattern (module-level) (2026-02-14)
+- [x] **Created pyproject.toml** with modern Python packaging config (2026-02-15)
+- [x] **Added comprehensive test suite** - 60 tests across 3 test files (2026-02-15)
+- [x] **Fixed cosine similarity bug in sim.py** - methodBert/methodNNEmbeddings used `.T` inconsistently (2026-02-15)
+- [x] **Consolidated duplicate embeddings_comparison.py** - subpackage now re-exports from root (2026-02-15)
+- [x] **Added input validation** to compare_sentences() - raises ValueError for wrong number of sentences (2026-02-15)
+- [x] **Removed unused import** in main.py - `runModels` from plotting was imported but never used (2026-02-15)
+- [x] **Added main() function** to main.py entry point (2026-02-15)
+- [x] **Updated CLAUDE.md** - removed stale "Known Issues" that were already fixed, added test documentation (2026-02-15)
 
 ## Bug Fixes Applied (2026-02-14)
 
@@ -48,6 +56,41 @@ and proper environment variable handling added. No secrets remain in source code
 - **Problem:** Compared `model_weights == model_weights` (self-comparison, always True)
   and also shadowed the parameter name with the unpacked tuple variable
 - **Fix:** Renamed parameter to `target_weights`, compare `model_weights == target_weights`
+
+## Bug Fixes Applied (2026-02-15)
+
+### MEDIUM - sim.py `methodBert()` and `methodNNEmbeddings()` cosine similarity
+- **Problem:** Used `embedding1.T` in `np.dot()` and `np.linalg.norm()` while
+  `methodRoBERTa()` used `embedding1` (without `.T`). For 1D arrays, `.T` is a no-op,
+  but this was inconsistent and would be wrong for 2D embeddings.
+- **Fix:** Changed both methods to use `embedding1` (without `.T`), consistent with RoBERTa
+
+## Test Suite (2026-02-15)
+
+### Structure
+```
+tests/
+  __init__.py                     # Package marker
+  conftest.py                     # Mock ML imports + shared fixtures
+  test_embeddings_comparison.py   # 10 tests - compare_sentences, caching, constants
+  test_similarity.py              # 28 tests - Similarity class, TF-IDF, utilities
+  test_rag.py                     # 22 tests - RRF, vector_search, generate_output
+```
+
+### Key Design Decisions
+- **No ML dependencies required**: All tests mock torch/transformers/sentence-transformers
+  at the `sys.modules` level in conftest.py, so tests run in ~1 second without any GPU
+- **TF-IDF tests use real scikit-learn**: Since sklearn is lightweight, we test the actual
+  TF-IDF cosine similarity computation
+- **RRF tests verify exact formula**: Tests validate the mathematical correctness of
+  `1/(rank + k)` accumulation
+- **Pytest markers**: `@pytest.mark.slow` available for future integration tests
+
+### Running Tests
+```bash
+python -m pytest tests/ -v           # All tests (~1s)
+python -m pytest tests/ -v --tb=short  # Compact output on failure
+```
 
 ## Code Quality Improvements (2026-02-14)
 
@@ -81,14 +124,36 @@ and proper environment variable handling added. No secrets remain in source code
 - Replaced fragmented device detection (torch.device() without assignment) with
   clean module-level `device: str = "cuda" if torch.cuda.is_available() else "cpu"`
 
+## Improvements (2026-02-15)
+
+### Code Consolidation
+- Duplicate `embeddings_comparison.py` eliminated - subpackage version now
+  re-exports from the canonical root module (single source of truth)
+- Removed unused `runModels` import from `main.py`
+- Added proper `main()` function to entry point
+
+### Input Validation
+- `compare_sentences()` now raises `ValueError` if given != 2 sentences
+- Clear error message: "Expected exactly 2 sentences, got N"
+
+### Modern Packaging
+- Added `pyproject.toml` with:
+  - Build system (setuptools)
+  - Project metadata (name, version, description, classifiers)
+  - Optional `[dev]` dependency group for test/lint tools
+  - pytest configuration (testpaths, pythonpath, markers, filter warnings)
+  - mypy configuration (strict type checking)
+  - ruff configuration (linting rules, naming exceptions for camelCase methods)
+
 ## Next Steps
 1. **URGENT: Rotate the leaked OpenAI API key** (still in git history!)
 2. Consider using BFG Repo Cleaner to remove the key from git history
-3. Add unit tests for `compare_sentences()`, `vector_search()`, `reciprocal_rank_fusion()`
-4. Remove duplicate `embeddings_comparison.py` (keep one canonical location, import from there)
-5. Consider restructuring into a proper Python package with `src/` layout
-6. Add a `pyproject.toml` for modern Python packaging
-7. Set up CI/CD (GitHub Actions for linting + type checking)
+3. Add model caching to sim.py methodBert/methodRoBERTa (currently re-download on every call)
+4. Consider restructuring into a proper `src/` layout
+5. Set up CI/CD (GitHub Actions for pytest + ruff + mypy)
+6. Add integration tests with `@pytest.mark.slow` for real model evaluation
+7. Add Hebrew-specific test data and evaluation benchmarks
+8. Improve RAG pipeline: add chunk overlap, configurable top-k, document preprocessing
 
 ## Key Decisions Made
 - Using sentence-transformers/paraphrase-multilingual-mpnet-base-v2 as primary model (good Hebrew support)
@@ -96,24 +161,25 @@ and proper environment variable handling added. No secrets remain in source code
 - RAG approach: query expansion -> vector search -> reciprocal rank fusion
 - Module-level model caching over class-based singleton (simpler for research code)
 - Google-style docstrings for consistency
+- Mock ML imports at sys.modules level for fast tests (no GPU/model downloads needed)
+- Single canonical embeddings_comparison.py at project root (subpackage re-exports)
 
-## Files Modified (2026-02-14)
-- `embeddings_comparison.py` - Added model caching, type hints, docstrings
-- `YehoshuaSimilarityComparisons/embeddings_comparison.py` - Same improvements
-- `YehoshuaSimilarityComparisons/rag.py` - Fixed 2 runtime bugs, added type hints/docstrings, cleaned up
-- `YehoshuaSimilarityComparisons/sim.py` - Fixed removeModel bug, removed tensorflow, removed side effects, added types
-- `YehoshuaSimilarityComparisons/main.py` - Fixed wildcard import, added docstring
-- `YehoshuaSimilarityComparisons/plotting.py` - Cleaned up, added docstring and type hints
-- `YehoshuaSimilarityComparisons/simple_rag.py` - Removed debug prints, cleaned up imports/device handling
-- `YehoshuaSimilarityComparisons/ragtest.py` - Cleaned up device handling, added docstring
-- `YehoshuaSimilarityComparisons/__init__.py` - Created (new file)
-- `.env.example` - Created (new file)
-- `.gitignore` - Fixed duplicate .env entry
-- `requirements.txt` - Added python-dotenv
+## Files Modified (2026-02-15)
+- `embeddings_comparison.py` - Added input validation, FutureWarning filter, enhanced docstrings
+- `YehoshuaSimilarityComparisons/embeddings_comparison.py` - Replaced duplicate with re-export
+- `YehoshuaSimilarityComparisons/sim.py` - Fixed cosine similarity `.T` inconsistency in methodBert/methodNNEmbeddings
+- `YehoshuaSimilarityComparisons/main.py` - Removed unused import, added main() function
+- `CLAUDE.md` - Updated with current state, removed stale known issues, added test docs
+- `pyproject.toml` - Created (new file)
+- `tests/__init__.py` - Created (new file)
+- `tests/conftest.py` - Created (new file) - Mock ML imports + shared fixtures
+- `tests/test_embeddings_comparison.py` - Created (new file) - 10 tests
+- `tests/test_similarity.py` - Created (new file) - 28 tests
+- `tests/test_rag.py` - Created (new file) - 22 tests
 - `PROGRESS.md` - Updated with all changes
 
 ## Notes for Next Session
 - The leaked API key is still in git history - consider using `git filter-branch` or BFG Repo Cleaner
-- The project still has two copies of embeddings_comparison.py - consolidate in next session
-- Consider adding a conftest.py and basic pytest tests
-- sim.py methods still create models on every call (BERT, RoBERTa) - could add caching
+- sim.py methodBert/methodRoBERTa still create models on every call - could add caching
+- Consider adding GitHub Actions CI with the test suite
+- Hebrew-specific evaluation data would strengthen the project significantly

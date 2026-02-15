@@ -2,13 +2,18 @@
 
 from __future__ import annotations
 
-from plotting import runModels
 from sim import Similarity
 
-if __name__ == "__main__":
+
+def main() -> None:
+    """Run similarity comparison demo."""
     similarity = Similarity()
     # Uncomment methods to run:
-    # similarity.methodNLTK()
-    # similarity.methodScikitlearn()
-    # similarity.methodBert()
-    # similarity.methodRoBERTa()
+    # print("NLTK/Doc2Vec:", similarity.methodNLTK())
+    # print("TF-IDF:", similarity.methodScikitlearn())
+    # print("BERT:", similarity.methodBert())
+    # print("RoBERTa:", similarity.methodRoBERTa())
+
+
+if __name__ == "__main__":
+    main()

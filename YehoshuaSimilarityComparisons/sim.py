@@ -195,8 +195,8 @@ class Similarity:
             )[0].detach().numpy()[0, :, 0]
 
             similarity = float(
-                np.dot(embedding1.T, embedding2)
-                / (np.linalg.norm(embedding1.T) * np.linalg.norm(embedding2))
+                np.dot(embedding1, embedding2)
+                / (np.linalg.norm(embedding1) * np.linalg.norm(embedding2))
             )
             texts_list.append((similarity, target_text, query))
         return texts_list
@@ -334,8 +334,8 @@ class Similarity:
             )[0].detach().numpy()[0, :, 0]
 
             similarity = float(
-                np.dot(embedding1.T, embedding2)
-                / (np.linalg.norm(embedding1.T) * np.linalg.norm(embedding2))
+                np.dot(embedding1, embedding2)
+                / (np.linalg.norm(embedding1) * np.linalg.norm(embedding2))
             )
             results.append((similarity, text, query))
         return results
