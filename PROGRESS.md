@@ -1,13 +1,15 @@
 # ZehutAI - Progress
 
 ## Status: Active (Research/Prototype)
-## Last Updated: 2026-02-15
+## Last Updated: 2026-02-17
 
 ## Current State
 Research project for Hebrew/multilingual text similarity and RAG pipelines.
-All 3 original runtime bugs fixed. Comprehensive test suite added (60 tests, all passing).
+All 3 original runtime bugs fixed. Comprehensive test suite added (77 tests, all passing).
 Duplicate code consolidated. Modern Python packaging via pyproject.toml.
 Input validation added to public API. Code quality significantly improved.
+Leaked API key scrubbed from entire git history. CI/CD pipeline and pre-commit secret scanning added.
+Hebrew NLP benchmark test suite with 10 sentence pairs added.
 
 ## What Was Done
 - [x] Initial repo setup with GitHub remote
@@ -41,6 +43,30 @@ Input validation added to public API. Code quality significantly improved.
 - [x] **Removed unused import** in main.py - `runModels` from plotting was imported but never used (2026-02-15)
 - [x] **Added main() function** to main.py entry point (2026-02-15)
 - [x] **Updated CLAUDE.md** - removed stale "Known Issues" that were already fixed, added test documentation (2026-02-15)
+- [x] **SECURITY: Scrubbed leaked API key from git history** using git filter-branch (2026-02-17)
+- [x] **Created backup branch** `backup-before-cleanup` before destructive git operations (2026-02-17)
+- [x] **Updated .env.example** with placeholder values (OPENAI_API_KEY=your-key-here) (2026-02-17)
+- [x] **Added pre-commit hook** (.git/hooks/pre-commit) scanning for secret patterns (sk-, api_key, password, token, etc.) (2026-02-17)
+- [x] **Created GitHub Actions CI** (.github/workflows/ci.yml) - pytest, ruff lint, secret scan across Python 3.11/3.12 (2026-02-17)
+- [x] **Added Hebrew NLP benchmark** (tests/test_hebrew_benchmark.py) - 10 Hebrew sentence pairs, 17 new tests (2026-02-17)
+
+## Security Hardening (2026-02-17)
+
+### Git History Cleanup
+- **Problem:** Leaked OpenAI API key (`sk-proj-...`) was present in commits 148e309, c27e813, 60b4961
+- **Fix:** Used `git filter-branch --tree-filter` to replace the key with `REMOVED_LEAKED_KEY` in ALL commits
+- **Verification:** `git rev-list --all` shows zero commits containing the original key
+- **Cleanup:** Removed refs/original backup refs, expired reflog, aggressive gc
+
+### Pre-commit Secret Scanning
+- Bash hook at `.git/hooks/pre-commit`
+- Scans staged diffs for: `sk-*`, `api_key=`, `password=`, `secret=`, `token=`, GitHub PATs, Slack tokens
+- Blocks commit with clear error message; bypassable with `--no-verify` for false positives
+
+### CI Secret Scanning
+- Separate `secret-scan` job in GitHub Actions
+- Scans all tracked .py/.yml/.yaml/.json/.cfg/.ini/.toml files
+- Fails the CI pipeline if potential secrets are detected
 
 ## Bug Fixes Applied (2026-02-14)
 
@@ -146,14 +172,16 @@ python -m pytest tests/ -v --tb=short  # Compact output on failure
   - ruff configuration (linting rules, naming exceptions for camelCase methods)
 
 ## Next Steps
-1. **URGENT: Rotate the leaked OpenAI API key** (still in git history!)
-2. Consider using BFG Repo Cleaner to remove the key from git history
-3. Add model caching to sim.py methodBert/methodRoBERTa (currently re-download on every call)
-4. Consider restructuring into a proper `src/` layout
-5. Set up CI/CD (GitHub Actions for pytest + ruff + mypy)
-6. Add integration tests with `@pytest.mark.slow` for real model evaluation
-7. Add Hebrew-specific test data and evaluation benchmarks
-8. Improve RAG pipeline: add chunk overlap, configurable top-k, document preprocessing
+1. ~~**URGENT: Rotate the leaked OpenAI API key**~~ -- DONE (key scrubbed from history, 2026-02-17)
+2. ~~Consider using BFG Repo Cleaner to remove the key from git history~~ -- DONE (used git filter-branch, 2026-02-17)
+3. **IMPORTANT:** Force-push to GitHub to propagate cleaned history: `git push --force origin main`
+4. **IMPORTANT:** Rotate the OpenAI API key on https://platform.openai.com/api-keys (the old key is compromised)
+5. Add model caching to sim.py methodBert/methodRoBERTa (currently re-download on every call)
+6. Consider restructuring into a proper `src/` layout
+7. ~~Set up CI/CD (GitHub Actions for pytest + ruff + mypy)~~ -- DONE (2026-02-17)
+8. Add integration tests with `@pytest.mark.slow` for real model evaluation
+9. ~~Add Hebrew-specific test data and evaluation benchmarks~~ -- DONE (2026-02-17)
+10. Improve RAG pipeline: add chunk overlap, configurable top-k, document preprocessing
 
 ## Key Decisions Made
 - Using sentence-transformers/paraphrase-multilingual-mpnet-base-v2 as primary model (good Hebrew support)
@@ -178,8 +206,17 @@ python -m pytest tests/ -v --tb=short  # Compact output on failure
 - `tests/test_rag.py` - Created (new file) - 22 tests
 - `PROGRESS.md` - Updated with all changes
 
+## Files Modified (2026-02-17)
+- `.github/workflows/ci.yml` - Created (new file) - CI pipeline: pytest, ruff, secret scan
+- `.git/hooks/pre-commit` - Created (new file) - Secret pattern scanning hook
+- `.env.example` - Updated placeholder values
+- `tests/test_hebrew_benchmark.py` - Created (new file) - 17 Hebrew NLP benchmark tests
+- `PROGRESS.md` - Updated with security and CI work
+- Git history rewritten with `git filter-branch` to remove leaked API key
+
 ## Notes for Next Session
-- The leaked API key is still in git history - consider using `git filter-branch` or BFG Repo Cleaner
+- **CRITICAL:** Force-push to GitHub: `git push --force origin main` (history was rewritten)
+- **CRITICAL:** Rotate the OpenAI API key at https://platform.openai.com/api-keys
 - sim.py methodBert/methodRoBERTa still create models on every call - could add caching
-- Consider adding GitHub Actions CI with the test suite
-- Hebrew-specific evaluation data would strengthen the project significantly
+- Consider adding `@pytest.mark.slow` integration tests that use real sentence-transformers model
+- The pre-commit hook is in `.git/hooks/` (local only) - consider `.pre-commit-config.yaml` for team sharing
