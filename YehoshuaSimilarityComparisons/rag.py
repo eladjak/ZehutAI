@@ -6,12 +6,121 @@ sentence-transformers, and Reciprocal Rank Fusion (RRF) for reranking.
 
 from __future__ import annotations
 
+import re
+
 import torch
 from embeddings_comparison import compare_sentences
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 # Detect device once at module level
 device: str = "cuda" if torch.cuda.is_available() else "cpu"
+
+
+def preprocess_text(text: str) -> str:
+    """Normalize a text string for consistent comparison.
+
+    Strips leading/trailing whitespace and collapses internal runs of
+    whitespace (spaces, tabs, newlines) to a single space.
+
+    Args:
+        text: Raw input text to normalize.
+
+    Returns:
+        Normalized text with uniform single-space separation and no
+        leading or trailing whitespace.
+
+    Examples:
+        >>> preprocess_text("  hello   world  ")
+        'hello world'
+        >>> preprocess_text("line1\\n\\nline2\\t end")
+        'line1 line2 end'
+    """
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def chunk_documents(
+    documents: dict[str, str],
+    chunk_size: int = 200,
+    overlap: int = 50,
+) -> list[dict[str, str | int]]:
+    """Split documents into overlapping chunks for finer-grained retrieval.
+
+    Long documents are tokenized by whitespace and split into windows of
+    ``chunk_size`` words with ``overlap`` words of context carried over
+    from the previous chunk.  Short documents that fit within a single
+    chunk are returned as-is.
+
+    Args:
+        documents: Mapping of document ID to document text.
+        chunk_size: Maximum number of words per chunk (default 200).
+        overlap: Number of words from the end of the previous chunk to
+            include at the start of the next chunk (default 50).
+            Must be strictly less than ``chunk_size``.
+
+    Returns:
+        List of dicts, each with keys:
+            - ``"chunk_id"`` (str): Unique identifier in the form
+              ``"<source_id>_chunk<N>"`` (or just ``"<source_id>"`` when
+              the document fits in a single chunk).
+            - ``"source_id"`` (str): The original document ID.
+            - ``"chunk_index"`` (int): Zero-based index of this chunk
+              within its source document.
+            - ``"text"`` (str): The chunk text.
+
+    Raises:
+        ValueError: If ``overlap`` >= ``chunk_size``.
+
+    Examples:
+        >>> docs = {"d1": "word " * 250}
+        >>> chunks = chunk_documents(docs, chunk_size=100, overlap=20)
+        >>> chunks[0]["source_id"]
+        'd1'
+        >>> chunks[0]["chunk_index"]
+        0
+    """
+    if overlap >= chunk_size:
+        raise ValueError(
+            f"overlap ({overlap}) must be strictly less than chunk_size ({chunk_size})."
+        )
+
+    result: list[dict[str, str | int]] = []
+
+    for source_id, text in documents.items():
+        cleaned = preprocess_text(text)
+        words = cleaned.split()
+
+        if len(words) <= chunk_size:
+            result.append(
+                {
+                    "chunk_id": source_id,
+                    "source_id": source_id,
+                    "chunk_index": 0,
+                    "text": cleaned,
+                }
+            )
+            continue
+
+        step = chunk_size - overlap
+        chunk_index = 0
+        start = 0
+
+        while start < len(words):
+            end = start + chunk_size
+            chunk_words = words[start:end]
+            result.append(
+                {
+                    "chunk_id": f"{source_id}_chunk{chunk_index}",
+                    "source_id": source_id,
+                    "chunk_index": chunk_index,
+                    "text": " ".join(chunk_words),
+                }
+            )
+            if end >= len(words):
+                break
+            start += step
+            chunk_index += 1
+
+    return result
 
 
 def generate_queries(original_query: str) -> list[str]:
@@ -44,19 +153,38 @@ def generate_queries(original_query: str) -> list[str]:
     return generated_queries
 
 
-def vector_search(query: str, all_documents: dict[str, str]) -> dict[str, float]:
+def vector_search(
+    query: str,
+    all_documents: dict[str, str],
+    top_k: int | None = None,
+) -> dict[str, float]:
     """Return cosine similarity scores between query and all documents.
+
+    The query and each document text are preprocessed with
+    :func:`preprocess_text` before comparison to ensure consistent
+    whitespace handling.
 
     Args:
         query: The search query.
         all_documents: Dict mapping document ID to document text.
+        top_k: If given, return only the *top_k* highest-scoring
+            documents.  When ``None`` (default) all documents are
+            returned, preserving backward-compatible behaviour.
 
     Returns:
         Dict of document IDs to similarity scores, sorted descending.
+        Contains at most ``top_k`` entries when ``top_k`` is specified.
     """
+    cleaned_query = preprocess_text(query)
     available_docs = list(all_documents.keys())
-    scores = {doc: compare_sentences([doc, query]) for doc in available_docs}
-    return dict(sorted(scores.items(), key=lambda x: x[1], reverse=True))
+    scores = {
+        doc: compare_sentences([preprocess_text(doc), cleaned_query])
+        for doc in available_docs
+    }
+    sorted_scores = dict(sorted(scores.items(), key=lambda x: x[1], reverse=True))
+    if top_k is not None:
+        sorted_scores = dict(list(sorted_scores.items())[:top_k])
+    return sorted_scores
 
 
 def reciprocal_rank_fusion(
@@ -65,11 +193,26 @@ def reciprocal_rank_fusion(
 ) -> dict[str, float]:
     """Fuse multiple ranked lists using Reciprocal Rank Fusion.
 
+    Each document's fused score is the sum of ``1 / (rank + k)`` across
+    all query result lists in which it appears, where ``rank`` is the
+    zero-based position in each list after sorting by descending score.
+
+    Note on ``k=60``:
+        The value 60 is the standard constant introduced in the original
+        RRF paper (Cormack, Clarke & Buettcher, SIGIR 2009).  It was
+        empirically shown to be robust across a wide range of retrieval
+        tasks: it softens the score penalty for documents ranked slightly
+        lower, preventing any single highly-ranked result from dominating
+        the fused list, while still rewarding consistent top rankings
+        across multiple queries.  Lowering ``k`` gives more weight to
+        rank-1 documents; raising it produces a more uniform distribution.
+
     Args:
         search_results_dict: Dict mapping query to its search results
             (each a dict of doc_id -> score).
-        k: RRF constant (default 60). Higher values reduce the influence
-            of high rankings from individual queries.
+        k: RRF smoothing constant (default 60, the standard value from
+            the original paper).  Higher values reduce the influence of
+            high rankings from individual queries.
 
     Returns:
         Dict of document IDs to fused scores, sorted descending.

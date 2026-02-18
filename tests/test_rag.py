@@ -13,10 +13,154 @@ import pytest
 
 from rag import (
     ALL_DOCUMENTS,
+    chunk_documents,
     generate_output,
+    preprocess_text,
     reciprocal_rank_fusion,
     vector_search,
 )
+
+
+# ---------------------------------------------------------------------------
+# preprocess_text tests
+# ---------------------------------------------------------------------------
+
+class TestPreprocessText:
+    """Tests for text normalization."""
+
+    def test_strips_whitespace(self) -> None:
+        """Should strip leading and trailing whitespace."""
+        assert preprocess_text("  hello  ") == "hello"
+
+    def test_collapses_internal_whitespace(self) -> None:
+        """Should collapse multiple spaces to one."""
+        assert preprocess_text("hello    world") == "hello world"
+
+    def test_normalizes_tabs_and_newlines(self) -> None:
+        """Should normalize tabs and newlines to single spaces."""
+        assert preprocess_text("hello\t\tworld\n\nfoo") == "hello world foo"
+
+    def test_empty_string(self) -> None:
+        """Empty string should return empty string."""
+        assert preprocess_text("") == ""
+
+    def test_single_word(self) -> None:
+        """Single word with no extra whitespace should remain unchanged."""
+        assert preprocess_text("word") == "word"
+
+    def test_already_clean(self) -> None:
+        """Already clean text should pass through unchanged."""
+        assert preprocess_text("hello world") == "hello world"
+
+
+# ---------------------------------------------------------------------------
+# chunk_documents tests
+# ---------------------------------------------------------------------------
+
+class TestChunkDocuments:
+    """Tests for document chunking with overlap."""
+
+    def test_short_doc_single_chunk(self) -> None:
+        """Document shorter than chunk_size should produce one chunk."""
+        docs = {"d1": "short text here"}
+        chunks = chunk_documents(docs, chunk_size=100, overlap=20)
+        assert len(chunks) == 1
+        assert chunks[0]["source_id"] == "d1"
+        assert chunks[0]["chunk_index"] == 0
+        assert chunks[0]["chunk_id"] == "d1"
+
+    def test_long_doc_multiple_chunks(self) -> None:
+        """Document longer than chunk_size should produce multiple chunks."""
+        docs = {"d1": " ".join(f"word{i}" for i in range(250))}
+        chunks = chunk_documents(docs, chunk_size=100, overlap=20)
+        assert len(chunks) > 1
+        assert all(c["source_id"] == "d1" for c in chunks)
+
+    def test_chunk_ids_sequential(self) -> None:
+        """Chunk indices should be sequential starting from 0."""
+        docs = {"d1": " ".join(f"w{i}" for i in range(300))}
+        chunks = chunk_documents(docs, chunk_size=100, overlap=20)
+        indices = [c["chunk_index"] for c in chunks]
+        assert indices == list(range(len(chunks)))
+
+    def test_chunk_id_format(self) -> None:
+        """Multi-chunk docs should use 'source_chunkN' format."""
+        docs = {"doc1": " ".join(f"w{i}" for i in range(250))}
+        chunks = chunk_documents(docs, chunk_size=100, overlap=20)
+        assert chunks[0]["chunk_id"] == "doc1_chunk0"
+        assert chunks[1]["chunk_id"] == "doc1_chunk1"
+
+    def test_overlap_content(self) -> None:
+        """Chunks should overlap by the specified number of words."""
+        words = [f"w{i}" for i in range(20)]
+        docs = {"d1": " ".join(words)}
+        chunks = chunk_documents(docs, chunk_size=10, overlap=3)
+        # First chunk: w0..w9, Second chunk should start at w7
+        chunk1_words = chunks[0]["text"].split()
+        chunk2_words = chunks[1]["text"].split()
+        overlap_words = set(chunk1_words[-3:]) & set(chunk2_words[:3])
+        assert len(overlap_words) == 3
+
+    def test_multiple_documents(self) -> None:
+        """Should process multiple documents independently."""
+        docs = {
+            "d1": "short doc",
+            "d2": " ".join(f"w{i}" for i in range(200)),
+        }
+        chunks = chunk_documents(docs, chunk_size=100, overlap=20)
+        d1_chunks = [c for c in chunks if c["source_id"] == "d1"]
+        d2_chunks = [c for c in chunks if c["source_id"] == "d2"]
+        assert len(d1_chunks) == 1
+        assert len(d2_chunks) >= 2
+
+    def test_overlap_must_be_less_than_chunk_size(self) -> None:
+        """overlap >= chunk_size should raise ValueError."""
+        with pytest.raises(ValueError, match="overlap"):
+            chunk_documents({"d1": "text"}, chunk_size=10, overlap=10)
+
+    def test_empty_documents(self) -> None:
+        """Empty input should return empty list."""
+        assert chunk_documents({}) == []
+
+    def test_preprocesses_text(self) -> None:
+        """Chunk text should be preprocessed (normalized whitespace)."""
+        docs = {"d1": "  hello   world  "}
+        chunks = chunk_documents(docs, chunk_size=100, overlap=10)
+        assert chunks[0]["text"] == "hello world"
+
+
+# ---------------------------------------------------------------------------
+# vector_search with top_k tests
+# ---------------------------------------------------------------------------
+
+class TestVectorSearchTopK:
+    """Tests for vector_search top_k parameter."""
+
+    @patch("rag.compare_sentences")
+    def test_top_k_limits_results(self, mock_compare: MagicMock) -> None:
+        """top_k should limit the number of returned results."""
+        scores = iter([0.9, 0.7, 0.5, 0.3, 0.1])
+        mock_compare.side_effect = lambda _: next(scores)
+        docs = {f"d{i}": f"text{i}" for i in range(5)}
+        result = vector_search("query", docs, top_k=3)
+        assert len(result) == 3
+
+    @patch("rag.compare_sentences")
+    def test_top_k_returns_highest(self, mock_compare: MagicMock) -> None:
+        """top_k should return the highest scoring documents."""
+        mock_compare.side_effect = lambda args: {"d1": 0.1, "d2": 0.9, "d3": 0.5}[args[0]]
+        docs = {"d1": "a", "d2": "b", "d3": "c"}
+        result = vector_search("query", docs, top_k=2)
+        assert "d2" in result
+        assert len(result) == 2
+
+    @patch("rag.compare_sentences")
+    def test_top_k_none_returns_all(self, mock_compare: MagicMock) -> None:
+        """top_k=None (default) should return all results."""
+        mock_compare.return_value = 0.5
+        docs = {"d1": "a", "d2": "b", "d3": "c"}
+        result = vector_search("query", docs)
+        assert len(result) == 3
 
 
 # ---------------------------------------------------------------------------

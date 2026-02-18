@@ -48,8 +48,9 @@ dev = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = [".", "YehoshuaSimilarityComparisons"]
+addopts = "-m 'not slow'"
 markers = [
-    "slow: marks tests that require model downloads (deselect with '-m \"not slow\"')",
+    "slow: marks tests that require model downloads (run with: pytest -m slow --override-ini='addopts=')",
     "integration: marks integration tests that require GPU or large models",
 ]
 filterwarnings = [

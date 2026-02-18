@@ -16,6 +16,34 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from transformers import BertTokenizer, RobertaTokenizer
 
+# Module-level model cache: avoids re-downloading on every method call
+_model_cache: dict[str, tuple[Any, Any]] = {}
+
+
+def _get_or_load_model(
+    tokenizer_cls: Any,
+    model_cls: Any,
+    model_weights: str,
+) -> tuple[Any, Any]:
+    """Load and cache a tokenizer/model pair by weights identifier.
+
+    Args:
+        tokenizer_cls: Tokenizer class (e.g., BertTokenizer).
+        model_cls: Model class (e.g., transformers.BertModel).
+        model_weights: Pretrained weights identifier.
+
+    Returns:
+        Tuple of (tokenizer_instance, model_instance).
+    """
+    if model_weights not in _model_cache:
+        tokenizer = tokenizer_cls.from_pretrained(
+            model_weights, clean_up_tokenization_spaces=True
+        )
+        model = model_cls.from_pretrained(model_weights)
+        _model_cache[model_weights] = (tokenizer, model)
+    return _model_cache[model_weights]
+
+
 # Default sample data used across methods
 DEFAULT_DATA: list[str] = [
     "The movie is awesome. It was a good thriller",
@@ -164,10 +192,7 @@ class Similarity:
         if data is None:
             data = DEFAULT_DATA
 
-        tokenizer = tokenizer.from_pretrained(
-            model_weights, clean_up_tokenization_spaces=True
-        )
-        model = model.from_pretrained(model_weights)
+        tokenizer, model = _get_or_load_model(tokenizer, model, model_weights)
 
         tokenized_query = tokenizer(
             query,
@@ -303,10 +328,9 @@ class Similarity:
         if data is None:
             data = DEFAULT_DATA
 
-        tokenizer = BertTokenizer.from_pretrained(
-            "bert-base-uncased", clean_up_tokenization_spaces=True
+        tokenizer, model = _get_or_load_model(
+            BertTokenizer, transformers.BertModel, "bert-base-uncased"
         )
-        model = transformers.BertModel.from_pretrained("bert-base-uncased")
 
         tokenized_query = tokenizer(
             query,
@@ -357,10 +381,9 @@ class Similarity:
         if data is None:
             data = DEFAULT_DATA
 
-        tokenizer = RobertaTokenizer.from_pretrained(
-            "roberta-base", clean_up_tokenization_spaces=True
+        tokenizer, model = _get_or_load_model(
+            RobertaTokenizer, transformers.RobertaModel, "roberta-base"
         )
-        model = transformers.RobertaModel.from_pretrained("roberta-base")
 
         tokenized_query = tokenizer(
             query,
@@ -388,7 +411,7 @@ class Similarity:
             )[0].detach().numpy()[0, :, 0]
 
             similarity = float(
-                np.dot(embedding1.T, embedding2)
+                np.dot(embedding1, embedding2)
                 / (np.linalg.norm(embedding1) * np.linalg.norm(embedding2))
             )
             results.append((similarity, text, query))

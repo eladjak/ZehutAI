@@ -1,0 +1,67 @@
+# Pre-commit hooks configuration for ZehutAI
+# Install: pip install pre-commit
+# Setup: pre-commit install
+# Run manually: pre-commit run --all-files
+# Bypass: git commit --no-verify
+
+repos:
+  # Standard file checks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: check-yaml
+        args: ['--unsafe']
+      - id: check-toml
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: check-added-large-files
+        args: ['--maxkb=1000']
+
+  # Ruff: Fast Python linter and formatter (astral.sh)
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.1.8
+    hooks:
+      - id: ruff
+        args: ['--fix']
+      - id: ruff-format
+
+  # Secret scanning: Yelp's detect-secrets
+  # Scans for API keys, tokens, passwords, and other sensitive credentials
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.4.0
+    hooks:
+      - id: detect-secrets
+        args: ['--baseline', '.secrets.baseline']
+        stages: [commit]
+
+  # Custom secret pattern hook: Scans staged changes for common secret patterns
+  # Patterns match: OpenAI API keys (sk-*), GitHub tokens (ghp_*, github_pat_),
+  # Slack tokens (xox*), and hardcoded password/secret/token assignments
+  - repo: local
+    hooks:
+      - id: detect-secrets-custom
+        name: Detect common secret patterns
+        entry: bash -c 'patterns=(
+          "sk-[a-zA-Z0-9_-]{20,}"
+          "api[_-]?key\s*[:=]\s*[\"'\''][a-zA-Z0-9]"
+          "password\s*[:=]\s*[\"'\''][^'\''"]{8,}"
+          "secret\s*[:=]\s*[\"'\''][a-zA-Z0-9]"
+          "token\s*[:=]\s*[\"'\''][a-zA-Z0-9]"
+          "OPENAI_API_KEY\s*=\s*[\"'\'']sk-"
+          "ghp_[a-zA-Z0-9]{36}"
+          "github_pat_[a-zA-Z0-9_]{82}"
+          "xox[bpors]-[a-zA-Z0-9-]+"
+          );
+          found=0;
+          for pattern in "${patterns[@]}"; do
+            matches=$(git diff --cached --unified=0 | grep "^+" | grep -v "^+++" | grep -iE "$pattern" || true);
+            if [ -n "$matches" ]; then
+              echo "ERROR: Potential secret pattern detected: $pattern";
+              echo "$matches" | head -3;
+              found=1;
+            fi;
+          done;
+          exit $found'
+        language: system
+        stages: [commit]
+        files: '(\.py|\.yaml|\.yml|\.toml|\.sh|\.env)$'

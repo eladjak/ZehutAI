@@ -1,15 +1,18 @@
 # ZehutAI - Progress
 
 ## Status: Active (Research/Prototype)
-## Last Updated: 2026-02-17
+## Last Updated: 2026-02-18
 
 ## Current State
 Research project for Hebrew/multilingual text similarity and RAG pipelines.
-All 3 original runtime bugs fixed. Comprehensive test suite added (77 tests, all passing).
+All 3 original runtime bugs fixed. Comprehensive test suite with 101 tests (all passing, +3 slow integration stubs).
 Duplicate code consolidated. Modern Python packaging via pyproject.toml.
 Input validation added to public API. Code quality significantly improved.
 Leaked API key scrubbed from entire git history. CI/CD pipeline and pre-commit secret scanning added.
 Hebrew NLP benchmark test suite with 10 sentence pairs added.
+Model caching added to sim.py (BERT/RoBERTa/NN models cached at module level).
+RAG pipeline enhanced with text preprocessing, chunk overlap, and configurable top-k.
+Shareable .pre-commit-config.yaml created (ruff, detect-secrets, standard hooks).
 
 ## What Was Done
 - [x] Initial repo setup with GitHub remote
@@ -49,6 +52,27 @@ Hebrew NLP benchmark test suite with 10 sentence pairs added.
 - [x] **Added pre-commit hook** (.git/hooks/pre-commit) scanning for secret patterns (sk-, api_key, password, token, etc.) (2026-02-17)
 - [x] **Created GitHub Actions CI** (.github/workflows/ci.yml) - pytest, ruff lint, secret scan across Python 3.11/3.12 (2026-02-17)
 - [x] **Added Hebrew NLP benchmark** (tests/test_hebrew_benchmark.py) - 10 Hebrew sentence pairs, 17 new tests (2026-02-17)
+- [x] **Added model caching to sim.py** - `_get_or_load_model()` caches tokenizer/model pairs by weights key (2026-02-18)
+- [x] **Fixed `.T` inconsistency in methodRoBERTa** - removed unnecessary `.T` on 1D array, consistent with methodBert (2026-02-18)
+- [x] **Enhanced RAG pipeline** - added `preprocess_text()`, `chunk_documents()` with overlap, `top_k` param in `vector_search()` (2026-02-18)
+- [x] **Added 6 model caching tests** - cache hit/miss, identity, separate entries (2026-02-18)
+- [x] **Added 18 RAG tests** - preprocess_text (6), chunk_documents (9), vector_search top_k (3) (2026-02-18)
+- [x] **Added 3 integration test stubs** (`@pytest.mark.slow`) for real BERT/RoBERTa model testing (2026-02-18)
+- [x] **Configured pytest to skip slow tests by default** via `addopts = "-m 'not slow'"` (2026-02-18)
+- [x] **Created .pre-commit-config.yaml** - ruff, detect-secrets, standard hooks for team sharing (2026-02-18)
+
+## Performance Improvements (2026-02-18)
+
+### Model Caching in sim.py
+- **Problem:** `methodBert()`, `methodRoBERTa()`, and `methodNNEmbeddings()` called `from_pretrained()` on every invocation, re-downloading models each time
+- **Fix:** Module-level `_model_cache` dict with `_get_or_load_model()` helper that loads once and caches by `model_weights` key
+- **Impact:** Second+ calls skip model loading entirely (from ~30s to ~0s per call)
+
+### RAG Pipeline Enhancements
+- `preprocess_text()`: normalizes whitespace, strips leading/trailing spaces
+- `chunk_documents()`: splits long docs into overlapping chunks (configurable `chunk_size` and `overlap`)
+- `vector_search()`: new `top_k` parameter limits returned results (backward-compatible, defaults to all)
+- RRF docstring enhanced with explanation of why `k=60` is the standard value
 
 ## Security Hardening (2026-02-17)
 
@@ -174,14 +198,18 @@ python -m pytest tests/ -v --tb=short  # Compact output on failure
 ## Next Steps
 1. ~~**URGENT: Rotate the leaked OpenAI API key**~~ -- DONE (key scrubbed from history, 2026-02-17)
 2. ~~Consider using BFG Repo Cleaner to remove the key from git history~~ -- DONE (used git filter-branch, 2026-02-17)
-3. **IMPORTANT:** Force-push to GitHub to propagate cleaned history: `git push --force origin main`
+3. ~~Force-push to GitHub~~ -- DONE (branch synced with origin/main)
 4. **IMPORTANT:** Rotate the OpenAI API key on https://platform.openai.com/api-keys (the old key is compromised)
-5. Add model caching to sim.py methodBert/methodRoBERTa (currently re-download on every call)
+5. ~~Add model caching to sim.py methodBert/methodRoBERTa~~ -- DONE (2026-02-18)
 6. Consider restructuring into a proper `src/` layout
 7. ~~Set up CI/CD (GitHub Actions for pytest + ruff + mypy)~~ -- DONE (2026-02-17)
-8. Add integration tests with `@pytest.mark.slow` for real model evaluation
+8. ~~Add integration tests with `@pytest.mark.slow`~~ -- DONE (3 stubs, 2026-02-18)
 9. ~~Add Hebrew-specific test data and evaluation benchmarks~~ -- DONE (2026-02-17)
-10. Improve RAG pipeline: add chunk overlap, configurable top-k, document preprocessing
+10. ~~Improve RAG pipeline: chunk overlap, configurable top-k, preprocessing~~ -- DONE (2026-02-18)
+11. Run `pre-commit install` to activate .pre-commit-config.yaml hooks
+12. Add model caching to rag.py `generate_queries()` (DictaLM model loaded every call)
+13. Add Hebrew-specific chunking (handle right-to-left, Hebrew word boundaries)
+14. Consider adding evaluation metrics (precision@k, NDCG) to benchmark suite
 
 ## Key Decisions Made
 - Using sentence-transformers/paraphrase-multilingual-mpnet-base-v2 as primary model (good Hebrew support)
@@ -214,9 +242,19 @@ python -m pytest tests/ -v --tb=short  # Compact output on failure
 - `PROGRESS.md` - Updated with security and CI work
 - Git history rewritten with `git filter-branch` to remove leaked API key
 
+## Files Modified (2026-02-18)
+- `YehoshuaSimilarityComparisons/sim.py` - Added `_model_cache`, `_get_or_load_model()`, updated methodBert/methodRoBERTa/methodNNEmbeddings to use cache, fixed `.T` in methodRoBERTa
+- `YehoshuaSimilarityComparisons/rag.py` - Added `preprocess_text()`, `chunk_documents()`, `top_k` param in `vector_search()`, enhanced RRF docstring
+- `tests/test_similarity.py` - Added 6 cache tests (TestModelCaching) + 3 integration stubs (TestIntegrationBert)
+- `tests/test_rag.py` - Added 18 tests: TestPreprocessText (6), TestChunkDocuments (9), TestVectorSearchTopK (3)
+- `pyproject.toml` - Added `addopts = "-m 'not slow'"` to skip slow tests by default
+- `.pre-commit-config.yaml` - Created (new file) - ruff, detect-secrets, standard hooks
+- `PROGRESS.md` - Updated with all changes
+
 ## Notes for Next Session
-- **CRITICAL:** Force-push to GitHub: `git push --force origin main` (history was rewritten)
-- **CRITICAL:** Rotate the OpenAI API key at https://platform.openai.com/api-keys
-- sim.py methodBert/methodRoBERTa still create models on every call - could add caching
-- Consider adding `@pytest.mark.slow` integration tests that use real sentence-transformers model
-- The pre-commit hook is in `.git/hooks/` (local only) - consider `.pre-commit-config.yaml` for team sharing
+- **IMPORTANT:** Rotate the OpenAI API key at https://platform.openai.com/api-keys
+- Run `pre-commit install` to activate the new .pre-commit-config.yaml hooks
+- Consider `src/` layout restructuring for cleaner packaging
+- rag.py `generate_queries()` still loads DictaLM model on every call - add caching
+- Hebrew-specific chunking could improve RAG quality for RTL text
+- Slow integration tests need a real model environment to run (GPU or large download)

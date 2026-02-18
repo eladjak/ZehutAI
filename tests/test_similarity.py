@@ -5,10 +5,12 @@ Tests that don't require model downloads use mocking or pure-logic methods.
 
 from __future__ import annotations
 
+from unittest.mock import MagicMock, call
+
 import numpy as np
 import pytest
 
-from sim import DEFAULT_DATA, DEFAULT_QUERY, Similarity
+from sim import DEFAULT_DATA, DEFAULT_QUERY, Similarity, _get_or_load_model, _model_cache
 
 
 # ---------------------------------------------------------------------------
@@ -240,3 +242,142 @@ class TestDefaults:
         """All entries in DEFAULT_DATA should be strings."""
         for item in DEFAULT_DATA:
             assert isinstance(item, str)
+
+
+# ---------------------------------------------------------------------------
+# Model caching (_get_or_load_model)
+# ---------------------------------------------------------------------------
+
+class TestModelCaching:
+    """Tests for the module-level model cache in sim.py."""
+
+    def setup_method(self) -> None:
+        """Clear the model cache before each test."""
+        _model_cache.clear()
+
+    def teardown_method(self) -> None:
+        """Clean up the model cache after each test."""
+        _model_cache.clear()
+
+    def test_cache_starts_empty(self) -> None:
+        """_model_cache should be empty after clearing."""
+        assert len(_model_cache) == 0
+
+    def test_first_call_loads_model(self) -> None:
+        """First call should invoke from_pretrained on both tokenizer and model."""
+        mock_tok_cls = MagicMock()
+        mock_mod_cls = MagicMock()
+        mock_tok_cls.from_pretrained.return_value = "tokenizer_instance"
+        mock_mod_cls.from_pretrained.return_value = "model_instance"
+
+        tok, mod = _get_or_load_model(mock_tok_cls, mock_mod_cls, "test-weights")
+
+        assert tok == "tokenizer_instance"
+        assert mod == "model_instance"
+        mock_tok_cls.from_pretrained.assert_called_once_with(
+            "test-weights", clean_up_tokenization_spaces=True
+        )
+        mock_mod_cls.from_pretrained.assert_called_once_with("test-weights")
+
+    def test_second_call_uses_cache(self) -> None:
+        """Second call with same weights should NOT call from_pretrained again."""
+        mock_tok_cls = MagicMock()
+        mock_mod_cls = MagicMock()
+        mock_tok_cls.from_pretrained.return_value = "tok"
+        mock_mod_cls.from_pretrained.return_value = "mod"
+
+        _get_or_load_model(mock_tok_cls, mock_mod_cls, "cached-weights")
+        tok2, mod2 = _get_or_load_model(mock_tok_cls, mock_mod_cls, "cached-weights")
+
+        assert tok2 == "tok"
+        assert mod2 == "mod"
+        # from_pretrained called exactly once (not twice)
+        assert mock_tok_cls.from_pretrained.call_count == 1
+        assert mock_mod_cls.from_pretrained.call_count == 1
+
+    def test_different_weights_load_separately(self) -> None:
+        """Different model_weights should create separate cache entries."""
+        mock_tok = MagicMock()
+        mock_mod = MagicMock()
+        mock_tok.from_pretrained.side_effect = lambda w, **kw: f"tok-{w}"
+        mock_mod.from_pretrained.side_effect = lambda w: f"mod-{w}"
+
+        tok1, mod1 = _get_or_load_model(mock_tok, mock_mod, "weights-a")
+        tok2, mod2 = _get_or_load_model(mock_tok, mock_mod, "weights-b")
+
+        assert tok1 == "tok-weights-a"
+        assert tok2 == "tok-weights-b"
+        assert mod1 == "mod-weights-a"
+        assert mod2 == "mod-weights-b"
+        assert len(_model_cache) == 2
+
+    def test_cache_populates_dict(self) -> None:
+        """After loading, the weights key should exist in _model_cache."""
+        mock_tok = MagicMock()
+        mock_mod = MagicMock()
+        mock_tok.from_pretrained.return_value = "t"
+        mock_mod.from_pretrained.return_value = "m"
+
+        _get_or_load_model(mock_tok, mock_mod, "my-model")
+
+        assert "my-model" in _model_cache
+        assert _model_cache["my-model"] == ("t", "m")
+
+    def test_cache_returns_same_objects(self) -> None:
+        """Cached values should be the exact same object references."""
+        mock_tok = MagicMock()
+        mock_mod = MagicMock()
+        tok_instance = MagicMock(name="real_tokenizer")
+        mod_instance = MagicMock(name="real_model")
+        mock_tok.from_pretrained.return_value = tok_instance
+        mock_mod.from_pretrained.return_value = mod_instance
+
+        result1 = _get_or_load_model(mock_tok, mock_mod, "identity-test")
+        result2 = _get_or_load_model(mock_tok, mock_mod, "identity-test")
+
+        assert result1[0] is result2[0]
+        assert result1[1] is result2[1]
+
+
+# ---------------------------------------------------------------------------
+# Integration test stubs (require real model downloads)
+# ---------------------------------------------------------------------------
+
+@pytest.mark.slow
+class TestIntegrationBert:
+    """Integration tests that download and run real BERT models.
+
+    Skipped by default. Run with: python -m pytest -m slow
+    """
+
+    def test_method_bert_returns_results(self) -> None:
+        """methodBert should return similarity tuples for each document."""
+        sim = Similarity()
+        results = sim.methodBert(
+            data=["Hello world", "Test sentence"],
+            query="Hello there",
+        )
+        assert len(results) == 2
+        for score, text, query in results:
+            assert isinstance(score, float)
+            assert -1.0 <= score <= 1.0
+
+    def test_method_roberta_returns_results(self) -> None:
+        """methodRoBERTa should return similarity tuples for each document."""
+        sim = Similarity()
+        results = sim.methodRoBERTa(
+            data=["Hello world", "Test sentence"],
+            query="Hello there",
+        )
+        assert len(results) == 2
+        for score, text, query in results:
+            assert isinstance(score, float)
+            assert -1.0 <= score <= 1.0
+
+    def test_bert_cache_reuse(self) -> None:
+        """Calling methodBert twice should reuse the cached model."""
+        sim = Similarity()
+        sim.methodBert(data=["First call"], query="test")
+        sim.methodBert(data=["Second call"], query="test")
+        # If caching works, 'bert-base-uncased' should be in the cache
+        assert "bert-base-uncased" in _model_cache
