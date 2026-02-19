@@ -13,9 +13,13 @@ import pytest
 
 from rag import (
     ALL_DOCUMENTS,
+    _get_or_load_rag_model,
+    _rag_model_cache,
     chunk_documents,
     generate_output,
+    preprocess_hebrew,
     preprocess_text,
+    rag_pipeline,
     reciprocal_rank_fusion,
     vector_search,
 )
@@ -360,3 +364,211 @@ class TestAllDocuments:
         for value in ALL_DOCUMENTS.values():
             assert isinstance(value, str)
             assert len(value) > 0
+
+
+# ---------------------------------------------------------------------------
+# Model caching (_get_or_load_rag_model / _rag_model_cache) tests
+# ---------------------------------------------------------------------------
+
+class TestRagModelCache:
+    """Tests for module-level RAG model caching."""
+
+    @patch("rag.AutoModelForCausalLM")
+    @patch("rag.AutoTokenizer")
+    def test_first_call_loads_model(
+        self, mock_tokenizer_cls: MagicMock, mock_model_cls: MagicMock
+    ) -> None:
+        """First call should invoke from_pretrained for model and tokenizer."""
+        import rag
+
+        # Ensure cache is clean for this model name
+        rag._rag_model_cache.pop("test-model-cache-1", None)
+
+        _get_or_load_rag_model("test-model-cache-1")
+
+        mock_model_cls.from_pretrained.assert_called_once()
+        mock_tokenizer_cls.from_pretrained.assert_called_once()
+
+    @patch("rag.AutoModelForCausalLM")
+    @patch("rag.AutoTokenizer")
+    def test_second_call_uses_cache(
+        self, mock_tokenizer_cls: MagicMock, mock_model_cls: MagicMock
+    ) -> None:
+        """Subsequent calls with the same model name must not reload."""
+        import rag
+
+        rag._rag_model_cache.pop("test-model-cache-2", None)
+
+        _get_or_load_rag_model("test-model-cache-2")
+        _get_or_load_rag_model("test-model-cache-2")
+
+        # from_pretrained should only be called once despite two invocations
+        assert mock_model_cls.from_pretrained.call_count == 1
+        assert mock_tokenizer_cls.from_pretrained.call_count == 1
+
+    @patch("rag.AutoModelForCausalLM")
+    @patch("rag.AutoTokenizer")
+    def test_returns_tuple(
+        self, mock_tokenizer_cls: MagicMock, mock_model_cls: MagicMock
+    ) -> None:
+        """Should return a (model, tokenizer) two-tuple."""
+        import rag
+
+        rag._rag_model_cache.pop("test-model-cache-3", None)
+
+        result = _get_or_load_rag_model("test-model-cache-3")
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+
+
+# ---------------------------------------------------------------------------
+# preprocess_hebrew tests
+# ---------------------------------------------------------------------------
+
+class TestPreprocessHebrew:
+    """Tests for Hebrew-aware text preprocessing."""
+
+    def test_removes_niqqud(self) -> None:
+        """Niqqud (vowel marks) should be stripped."""
+        # שָׁלוֹם with niqqud -> שלום without
+        assert preprocess_hebrew("שָׁלוֹם") == "שלום"
+
+    def test_removes_cantillation(self) -> None:
+        """Cantillation marks (U+0591 range) should be stripped."""
+        # U+05C1 = shin dot, U+05B0 = shva
+        text_with_marks = "\u05E9\u05C1\u05B8\u05DC\u05D5\u05B9\u05DD"
+        result = preprocess_hebrew(text_with_marks)
+        assert all(ord(c) < 0x0591 or ord(c) > 0x05C7 for c in result)
+
+    def test_plain_hebrew_unchanged(self) -> None:
+        """Plain Hebrew letters (no niqqud) should not be modified."""
+        assert preprocess_hebrew("שלום עולם") == "שלום עולם"
+
+    def test_normalize_finals_off_by_default(self) -> None:
+        """Final letters should be kept as-is when normalize_finals=False."""
+        assert preprocess_hebrew("מלך") == "מלך"  # ך preserved
+
+    def test_normalize_finals_replaces_all_five(self) -> None:
+        """All five final letters should be replaced when normalize_finals=True."""
+        # ך->כ, ם->מ, ן->נ, ף->פ, ץ->צ
+        result = preprocess_hebrew("ךםןףץ", normalize_finals=True)
+        assert result == "כמנפצ"
+
+    def test_normalize_finals_does_not_affect_medial_forms(self) -> None:
+        """Medial (non-final) letters should not be changed."""
+        result = preprocess_hebrew("כמנפצ", normalize_finals=True)
+        assert result == "כמנפצ"
+
+    def test_whitespace_normalization_applied(self) -> None:
+        """Whitespace normalization from preprocess_text should also run."""
+        assert preprocess_hebrew("  שלום   עולם  ") == "שלום עולם"
+
+    def test_empty_string(self) -> None:
+        """Empty string should return empty string."""
+        assert preprocess_hebrew("") == ""
+
+    def test_latin_text_unchanged(self) -> None:
+        """Latin text (no Hebrew diacritics) should pass through unchanged."""
+        assert preprocess_hebrew("hello world") == "hello world"
+
+    def test_mixed_hebrew_latin(self) -> None:
+        """Mixed Hebrew/Latin text: only niqqud should be stripped."""
+        result = preprocess_hebrew("שָׁלוֹם hello")
+        assert "hello" in result
+        assert "שלום" in result
+
+
+# ---------------------------------------------------------------------------
+# rag_pipeline tests
+# ---------------------------------------------------------------------------
+
+class TestRagPipeline:
+    """Tests for the end-to-end RAG pipeline function."""
+
+    @patch("rag.compare_sentences")
+    def test_returns_dict(self, mock_compare: MagicMock) -> None:
+        """rag_pipeline should return a dict."""
+        mock_compare.return_value = 0.5
+        docs = {"d1": "climate", "d2": "history"}
+        result = rag_pipeline("climate change", docs)
+        assert isinstance(result, dict)
+
+    @patch("rag.compare_sentences")
+    def test_no_expansion_single_query(self, mock_compare: MagicMock) -> None:
+        """Without query expansion, all docs should appear in results."""
+        mock_compare.return_value = 0.5
+        docs = {"d1": "a", "d2": "b", "d3": "c"}
+        result = rag_pipeline("query", docs)
+        assert set(result.keys()) == {"d1", "d2", "d3"}
+
+    @patch("rag.compare_sentences")
+    def test_top_k_limits_results(self, mock_compare: MagicMock) -> None:
+        """top_k should limit the number of returned documents."""
+        scores = iter([0.9, 0.7, 0.5, 0.3, 0.1])
+        mock_compare.side_effect = lambda _: next(scores)
+        docs = {f"d{i}": f"text{i}" for i in range(5)}
+        result = rag_pipeline("query", docs, top_k=2)
+        assert len(result) == 2
+
+    @patch("rag.compare_sentences")
+    def test_chunking_enabled(self, mock_compare: MagicMock) -> None:
+        """With chunk_size set, chunked corpus keys should appear in results."""
+        mock_compare.return_value = 0.5
+        # Build a doc longer than chunk_size=5 so chunking produces multiple chunks
+        docs = {"doc1": " ".join(f"w{i}" for i in range(15))}
+        result = rag_pipeline("query", docs, chunk_size=5, chunk_overlap=1)
+        # All result keys should come from chunked doc1
+        assert all("doc1" in k for k in result.keys())
+
+    @patch("rag.compare_sentences")
+    def test_rrf_k_parameter_forwarded(self, mock_compare: MagicMock) -> None:
+        """Custom rrf_k should be forwarded to reciprocal_rank_fusion."""
+        mock_compare.return_value = 0.5
+        docs = {"d1": "text"}
+        # k=1 gives 1/(0+1) = 1.0 for a single doc at rank 0
+        result = rag_pipeline("query", docs, rrf_k=1)
+        assert abs(result["d1"] - 1.0) < 1e-10
+
+    @patch("rag.compare_sentences")
+    def test_empty_documents(self, mock_compare: MagicMock) -> None:
+        """Empty document dict should return empty result."""
+        result = rag_pipeline("query", {})
+        assert result == {}
+        mock_compare.assert_not_called()
+
+    @patch("rag.compare_sentences")
+    @patch("rag.generate_queries")
+    def test_query_expansion_calls_generate_queries(
+        self,
+        mock_gen: MagicMock,
+        mock_compare: MagicMock,
+    ) -> None:
+        """With use_query_expansion=True, generate_queries should be called."""
+        mock_gen.return_value = ["expanded query 1", "expanded query 2"]
+        mock_compare.return_value = 0.5
+        docs = {"d1": "text", "d2": "other"}
+        rag_pipeline("query", docs, use_query_expansion=True)
+        mock_gen.assert_called_once_with("query")
+
+    @patch("rag.compare_sentences")
+    @patch("rag.generate_queries")
+    def test_no_query_expansion_skips_generate_queries(
+        self,
+        mock_gen: MagicMock,
+        mock_compare: MagicMock,
+    ) -> None:
+        """Without query expansion, generate_queries should not be called."""
+        mock_compare.return_value = 0.5
+        docs = {"d1": "text"}
+        rag_pipeline("query", docs, use_query_expansion=False)
+        mock_gen.assert_not_called()
+
+    @patch("rag.compare_sentences")
+    def test_results_sorted_descending(self, mock_compare: MagicMock) -> None:
+        """Pipeline output should be sorted by fused score descending."""
+        scores = iter([0.1, 0.9, 0.5])
+        mock_compare.side_effect = lambda _: next(scores)
+        docs = {"d1": "a", "d2": "b", "d3": "c"}
+        result = rag_pipeline("query", docs)
+        values = list(result.values())
+        assert values == sorted(values, reverse=True)

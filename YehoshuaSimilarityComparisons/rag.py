@@ -7,6 +7,7 @@ sentence-transformers, and Reciprocal Rank Fusion (RRF) for reranking.
 from __future__ import annotations
 
 import re
+from typing import Any
 
 import torch
 from embeddings_comparison import compare_sentences
@@ -14,6 +15,39 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 
 # Detect device once at module level
 device: str = "cuda" if torch.cuda.is_available() else "cpu"
+
+# ---------------------------------------------------------------------------
+# Module-level model cache for RAG generation models
+# ---------------------------------------------------------------------------
+
+_rag_model_cache: dict[str, tuple[Any, Any]] = {}
+
+
+def _get_or_load_rag_model(model_name: str) -> tuple[Any, Any]:
+    """Cache and return (model, tokenizer) for RAG generation models.
+
+    Loads the model and tokenizer from HuggingFace on first call, then
+    returns the cached objects on subsequent calls to avoid redundant
+    downloads and GPU memory allocations.
+
+    Args:
+        model_name: HuggingFace model identifier (e.g.
+            ``"dicta-il/dictalm2.0-instruct"``).
+
+    Returns:
+        A ``(model, tokenizer)`` tuple.  The model is loaded with
+        ``torch_dtype=torch.bfloat16`` and ``device_map`` set to the
+        module-level :data:`device`.
+    """
+    if model_name not in _rag_model_cache:
+        model = AutoModelForCausalLM.from_pretrained(
+            model_name,
+            torch_dtype=torch.bfloat16,
+            device_map=device,
+        )
+        tokenizer = AutoTokenizer.from_pretrained(model_name)
+        _rag_model_cache[model_name] = (model, tokenizer)
+    return _rag_model_cache[model_name]
 
 
 def preprocess_text(text: str) -> str:
@@ -36,6 +70,46 @@ def preprocess_text(text: str) -> str:
         'line1 line2 end'
     """
     return re.sub(r"\s+", " ", text).strip()
+
+
+def preprocess_hebrew(text: str, *, normalize_finals: bool = False) -> str:
+    """Normalize a Hebrew text string for consistent comparison.
+
+    Applies general whitespace normalization via :func:`preprocess_text`,
+    then strips Hebrew niqqud (vowel-pointing diacritics) and optionally
+    maps final letter forms to their standard equivalents so that, e.g.,
+    ``"מלך"`` and ``"מלכ"`` compare as identical tokens.
+
+    Args:
+        text: Raw Hebrew (or mixed) input text.
+        normalize_finals: When ``True``, replace Hebrew final letters
+            (ך, ם, ן, ף, ץ) with their medial counterparts
+            (כ, מ, נ, פ, צ).  Defaults to ``False``.
+
+    Returns:
+        Cleaned text with niqqud removed and, if requested, final letters
+        normalized.
+
+    Examples:
+        >>> preprocess_hebrew("שָׁלוֹם")
+        'שלום'
+        >>> preprocess_hebrew("מלך", normalize_finals=True)
+        'מלכ'
+    """
+    # Step 1: general whitespace normalization
+    result = preprocess_text(text)
+
+    # Step 2: remove Hebrew niqqud / cantillation marks
+    # Unicode ranges: U+0591-U+05BD (cantillation + most niqqud),
+    # U+05BF-U+05C7 (rafe, shin/sin dot, holam, qamats, etc.)
+    result = re.sub(r"[\u0591-\u05BD\u05BF-\u05C7]", "", result)
+
+    # Step 3: optionally normalize final letter forms
+    if normalize_finals:
+        _FINALS_MAP = str.maketrans("ךםןףץ", "כמנפצ")
+        result = result.translate(_FINALS_MAP)
+
+    return result
 
 
 def chunk_documents(
@@ -126,18 +200,17 @@ def chunk_documents(
 def generate_queries(original_query: str) -> list[str]:
     """Expand a query into multiple related queries using DictaLM 2.0.
 
+    The model and tokenizer are loaded once and cached at module level via
+    :func:`_get_or_load_rag_model` to avoid repeated downloads and GPU
+    memory allocations across calls.
+
     Args:
         original_query: The original search query to expand.
 
     Returns:
         List of generated query variations.
     """
-    model = AutoModelForCausalLM.from_pretrained(
-        "dicta-il/dictalm2.0-instruct",
-        torch_dtype=torch.bfloat16,
-        device_map=device,
-    )
-    tokenizer = AutoTokenizer.from_pretrained("dicta-il/dictalm2.0-instruct")
+    model, tokenizer = _get_or_load_rag_model("dicta-il/dictalm2.0-instruct")
 
     messages = [
         {"role": "user", "content": original_query},
@@ -249,6 +322,91 @@ def generate_output(
         f"Final output based on {queries} "
         f"and reranked documents: {list(reranked_results.keys())}"
     )
+
+
+def rag_pipeline(
+    query: str,
+    documents: dict[str, str],
+    use_query_expansion: bool = False,
+    top_k: int | None = None,
+    rrf_k: int = 60,
+    chunk_size: int | None = None,
+    chunk_overlap: int = 50,
+) -> dict[str, float]:
+    """Run an end-to-end RAG retrieval pipeline.
+
+    Optionally chunks documents, optionally expands the query, runs vector
+    search for each query variant, then fuses the ranked lists with
+    Reciprocal Rank Fusion.
+
+    Pipeline stages:
+
+    1. **Chunking** (optional): if ``chunk_size`` is set, documents are
+       split into overlapping chunks via :func:`chunk_documents`.  The
+       resulting flat text chunks (keyed by ``chunk_id``) are used as the
+       retrieval corpus.
+    2. **Query expansion** (optional): if ``use_query_expansion`` is
+       ``True``, :func:`generate_queries` is called to produce additional
+       query variants.  Otherwise only the original query is used.
+    3. **Vector search**: :func:`vector_search` is called once per query
+       variant against the (possibly chunked) document corpus.
+    4. **Fusion**: all per-query ranked lists are merged with
+       :func:`reciprocal_rank_fusion`.
+    5. **Top-K trimming**: if ``top_k`` is set, the fused results are
+       trimmed to the highest-scoring ``top_k`` entries.
+
+    Args:
+        query: The user's search query.
+        documents: Mapping of document ID to document text.
+        use_query_expansion: If ``True``, use DictaLM 2.0 to generate
+            additional query variants before retrieval.
+        top_k: Maximum number of results to return.  ``None`` returns all.
+        rrf_k: Smoothing constant for Reciprocal Rank Fusion (default 60).
+        chunk_size: If set, documents are chunked to at most this many
+            words before retrieval.  ``None`` disables chunking.
+        chunk_overlap: Word overlap between consecutive chunks when
+            ``chunk_size`` is set (default 50).
+
+    Returns:
+        Dict of document (or chunk) IDs to fused RRF scores, sorted
+        descending.  At most ``top_k`` entries when ``top_k`` is given.
+
+    Raises:
+        ValueError: Propagated from :func:`chunk_documents` when
+            ``chunk_overlap >= chunk_size``.
+
+    Examples:
+        >>> docs = {"d1": "climate change", "d2": "ancient history"}
+        >>> result = rag_pipeline("climate", docs)
+        >>> list(result.keys())[0]  # highest scorer
+        'd1'
+    """
+    # Stage 1: optional document chunking
+    if chunk_size is not None:
+        chunks = chunk_documents(documents, chunk_size=chunk_size, overlap=chunk_overlap)
+        retrieval_corpus: dict[str, str] = {c["chunk_id"]: c["text"] for c in chunks}  # type: ignore[misc]
+    else:
+        retrieval_corpus = dict(documents)
+
+    # Stage 2: optional query expansion
+    if use_query_expansion:
+        queries = generate_queries(query)
+    else:
+        queries = [query]
+
+    # Stage 3: vector search per query
+    all_results: dict[str, dict[str, float]] = {}
+    for q in queries:
+        all_results[q] = vector_search(q, retrieval_corpus)
+
+    # Stage 4: reciprocal rank fusion
+    fused = reciprocal_rank_fusion(all_results, k=rrf_k)
+
+    # Stage 5: optional top-k trimming
+    if top_k is not None:
+        fused = dict(list(fused.items())[:top_k])
+
+    return fused
 
 
 # Predefined set of documents (usually these would be from a search database)

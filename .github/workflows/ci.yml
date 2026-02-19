@@ -43,7 +43,15 @@ jobs:
 
       - name: Run tests with coverage
         run: |
-          python -m pytest tests/ --cov=. --cov-report=term-missing --cov-fail-under=70
+          python -m pytest tests/ --cov=. --cov=YehoshuaSimilarityComparisons --cov-report=term-missing --cov-report=xml --cov-fail-under=70
+
+      - name: Upload coverage reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report-${{ matrix.python-version }}
+          path: coverage.xml
+          retention-days: 30
 
   lint:
     runs-on: ubuntu-latest

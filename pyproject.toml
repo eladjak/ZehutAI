@@ -86,3 +86,28 @@ ignore = [
     "N806",  # variable in function should be lowercase
     "N803",  # argument name should be lowercase
 ]
+
+[tool.coverage.run]
+source = [".", "YehoshuaSimilarityComparisons"]
+omit = [
+    "tests/*",
+    "setup.py",
+    "*/__pycache__/*",
+    ".omc/*",
+    ".pytest_cache/*",
+]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+precision = 2
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "@abstractmethod",
+    "@abc.abstractmethod",
+]
