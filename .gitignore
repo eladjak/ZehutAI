@@ -75,3 +75,4 @@ Thumbs.db
 *.key
 *.pem
 secrets/
+.claude/

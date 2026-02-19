@@ -1,6 +1,6 @@
 """Tests for the evaluation metrics module.
 
-Covers all public functions in YehoshuaSimilarityComparisons/evaluation.py
+Covers all public functions in zehutai/evaluation/evaluation.py
 with at least 15 test cases including edge cases, known mathematical
 examples, and multi-query scenarios.
 """
@@ -11,7 +11,7 @@ import math
 
 import pytest
 
-from evaluation import (
+from zehutai.evaluation.evaluation import (
     average_precision,
     evaluate_retrieval,
     f1_score,

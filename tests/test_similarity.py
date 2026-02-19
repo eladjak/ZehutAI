@@ -10,7 +10,7 @@ from unittest.mock import MagicMock, call
 import numpy as np
 import pytest
 
-from sim import DEFAULT_DATA, DEFAULT_QUERY, Similarity, _get_or_load_model, _model_cache
+from zehutai.similarity.sim import DEFAULT_DATA, DEFAULT_QUERY, Similarity, _get_or_load_model, _model_cache
 
 
 # ---------------------------------------------------------------------------

@@ -24,7 +24,7 @@ from typing import Any
 def _import_compare_sentences() -> Any:
     """Import compare_sentences, raising ImportError with helpful message if unavailable."""
     try:
-        from embeddings_comparison import compare_sentences
+        from zehutai.embeddings_comparison import compare_sentences
         return compare_sentences
     except ImportError as exc:
         raise ImportError(
@@ -35,14 +35,9 @@ def _import_compare_sentences() -> Any:
 
 
 def _import_similarity_class() -> Any:
-    """Import the Similarity class from YehoshuaSimilarityComparisons."""
+    """Import the Similarity class from zehutai.similarity."""
     try:
-        import sys
-        from pathlib import Path
-        _sub = str(Path(__file__).resolve().parent / "YehoshuaSimilarityComparisons")
-        if _sub not in sys.path:
-            sys.path.insert(0, _sub)
-        from sim import Similarity
+        from zehutai.similarity.sim import Similarity
         return Similarity
     except ImportError as exc:
         raise ImportError(
@@ -53,14 +48,9 @@ def _import_similarity_class() -> Any:
 
 
 def _import_rag_functions() -> tuple[Any, Any, Any]:
-    """Import vector_search, reciprocal_rank_fusion, and ALL_DOCUMENTS from rag.py."""
+    """Import vector_search, reciprocal_rank_fusion, and ALL_DOCUMENTS from zehutai.rag."""
     try:
-        import sys
-        from pathlib import Path
-        _sub = str(Path(__file__).resolve().parent / "YehoshuaSimilarityComparisons")
-        if _sub not in sys.path:
-            sys.path.insert(0, _sub)
-        from rag import vector_search, reciprocal_rank_fusion, ALL_DOCUMENTS
+        from zehutai.rag.rag import vector_search, reciprocal_rank_fusion, ALL_DOCUMENTS
         return vector_search, reciprocal_rank_fusion, ALL_DOCUMENTS
     except ImportError as exc:
         raise ImportError(
@@ -73,12 +63,7 @@ def _import_rag_functions() -> tuple[Any, Any, Any]:
 def _import_benchmark_functions() -> tuple[Any, Any, Any]:
     """Import run_benchmark, evaluate_benchmark, and format_benchmark_report."""
     try:
-        import sys
-        from pathlib import Path
-        _sub = str(Path(__file__).resolve().parent / "YehoshuaSimilarityComparisons")
-        if _sub not in sys.path:
-            sys.path.insert(0, _sub)
-        from hebrew_benchmark import (
+        from zehutai.hebrew.hebrew_benchmark import (
             run_benchmark,
             evaluate_benchmark,
             format_benchmark_report,

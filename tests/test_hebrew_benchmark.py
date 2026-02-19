@@ -18,7 +18,7 @@ from unittest.mock import MagicMock
 import numpy as np
 import pytest
 
-import embeddings_comparison as ec
+import zehutai.embeddings_comparison as ec
 
 
 # ---------------------------------------------------------------------------

@@ -11,7 +11,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from rag import (
+from zehutai.rag.rag import (
     ALL_DOCUMENTS,
     _get_or_load_rag_model,
     _rag_model_cache,
@@ -140,7 +140,7 @@ class TestChunkDocuments:
 class TestVectorSearchTopK:
     """Tests for vector_search top_k parameter."""
 
-    @patch("rag.compare_sentences")
+    @patch("zehutai.rag.rag.compare_sentences")
     def test_top_k_limits_results(self, mock_compare: MagicMock) -> None:
         """top_k should limit the number of returned results."""
         scores = iter([0.9, 0.7, 0.5, 0.3, 0.1])
@@ -149,7 +149,7 @@ class TestVectorSearchTopK:
         result = vector_search("query", docs, top_k=3)
         assert len(result) == 3
 
-    @patch("rag.compare_sentences")
+    @patch("zehutai.rag.rag.compare_sentences")
     def test_top_k_returns_highest(self, mock_compare: MagicMock) -> None:
         """top_k should return the highest scoring documents."""
         mock_compare.side_effect = lambda args: {"d1": 0.1, "d2": 0.9, "d3": 0.5}[args[0]]
@@ -158,7 +158,7 @@ class TestVectorSearchTopK:
         assert "d2" in result
         assert len(result) == 2
 
-    @patch("rag.compare_sentences")
+    @patch("zehutai.rag.rag.compare_sentences")
     def test_top_k_none_returns_all(self, mock_compare: MagicMock) -> None:
         """top_k=None (default) should return all results."""
         mock_compare.return_value = 0.5
@@ -265,7 +265,7 @@ class TestReciprocalRankFusion:
 class TestVectorSearch:
     """Tests for vector_search with mocked similarity."""
 
-    @patch("rag.compare_sentences")
+    @patch("zehutai.rag.rag.compare_sentences")
     def test_returns_dict(
         self, mock_compare: MagicMock, sample_documents: dict[str, str]
     ) -> None:
@@ -274,7 +274,7 @@ class TestVectorSearch:
         result = vector_search("test query", sample_documents)
         assert isinstance(result, dict)
 
-    @patch("rag.compare_sentences")
+    @patch("zehutai.rag.rag.compare_sentences")
     def test_all_docs_scored(
         self, mock_compare: MagicMock, sample_documents: dict[str, str]
     ) -> None:
@@ -283,7 +283,7 @@ class TestVectorSearch:
         result = vector_search("test query", sample_documents)
         assert len(result) == len(sample_documents)
 
-    @patch("rag.compare_sentences")
+    @patch("zehutai.rag.rag.compare_sentences")
     def test_results_sorted_descending(
         self, mock_compare: MagicMock
     ) -> None:
@@ -297,7 +297,7 @@ class TestVectorSearch:
         result_scores = list(result.values())
         assert result_scores == sorted(result_scores, reverse=True)
 
-    @patch("rag.compare_sentences")
+    @patch("zehutai.rag.rag.compare_sentences")
     def test_calls_compare_for_each_doc(
         self, mock_compare: MagicMock
     ) -> None:
@@ -307,7 +307,7 @@ class TestVectorSearch:
         vector_search("query", docs)
         assert mock_compare.call_count == 3
 
-    @patch("rag.compare_sentences")
+    @patch("zehutai.rag.rag.compare_sentences")
     def test_empty_documents(self, mock_compare: MagicMock) -> None:
         """Empty documents dict should return empty result."""
         result = vector_search("query", {})
@@ -373,13 +373,13 @@ class TestAllDocuments:
 class TestRagModelCache:
     """Tests for module-level RAG model caching."""
 
-    @patch("rag.AutoModelForCausalLM")
-    @patch("rag.AutoTokenizer")
+    @patch("zehutai.rag.rag.AutoModelForCausalLM")
+    @patch("zehutai.rag.rag.AutoTokenizer")
     def test_first_call_loads_model(
         self, mock_tokenizer_cls: MagicMock, mock_model_cls: MagicMock
     ) -> None:
         """First call should invoke from_pretrained for model and tokenizer."""
-        import rag
+        from zehutai.rag import rag
 
         # Ensure cache is clean for this model name
         rag._rag_model_cache.pop("test-model-cache-1", None)
@@ -389,13 +389,13 @@ class TestRagModelCache:
         mock_model_cls.from_pretrained.assert_called_once()
         mock_tokenizer_cls.from_pretrained.assert_called_once()
 
-    @patch("rag.AutoModelForCausalLM")
-    @patch("rag.AutoTokenizer")
+    @patch("zehutai.rag.rag.AutoModelForCausalLM")
+    @patch("zehutai.rag.rag.AutoTokenizer")
     def test_second_call_uses_cache(
         self, mock_tokenizer_cls: MagicMock, mock_model_cls: MagicMock
     ) -> None:
         """Subsequent calls with the same model name must not reload."""
-        import rag
+        from zehutai.rag import rag
 
         rag._rag_model_cache.pop("test-model-cache-2", None)
 
@@ -406,13 +406,13 @@ class TestRagModelCache:
         assert mock_model_cls.from_pretrained.call_count == 1
         assert mock_tokenizer_cls.from_pretrained.call_count == 1
 
-    @patch("rag.AutoModelForCausalLM")
-    @patch("rag.AutoTokenizer")
+    @patch("zehutai.rag.rag.AutoModelForCausalLM")
+    @patch("zehutai.rag.rag.AutoTokenizer")
     def test_returns_tuple(
         self, mock_tokenizer_cls: MagicMock, mock_model_cls: MagicMock
     ) -> None:
         """Should return a (model, tokenizer) two-tuple."""
-        import rag
+        from zehutai.rag import rag
 
         rag._rag_model_cache.pop("test-model-cache-3", None)
 
@@ -485,7 +485,7 @@ class TestPreprocessHebrew:
 class TestRagPipeline:
     """Tests for the end-to-end RAG pipeline function."""
 
-    @patch("rag.compare_sentences")
+    @patch("zehutai.rag.rag.compare_sentences")
     def test_returns_dict(self, mock_compare: MagicMock) -> None:
         """rag_pipeline should return a dict."""
         mock_compare.return_value = 0.5
@@ -493,7 +493,7 @@ class TestRagPipeline:
         result = rag_pipeline("climate change", docs)
         assert isinstance(result, dict)
 
-    @patch("rag.compare_sentences")
+    @patch("zehutai.rag.rag.compare_sentences")
     def test_no_expansion_single_query(self, mock_compare: MagicMock) -> None:
         """Without query expansion, all docs should appear in results."""
         mock_compare.return_value = 0.5
@@ -501,7 +501,7 @@ class TestRagPipeline:
         result = rag_pipeline("query", docs)
         assert set(result.keys()) == {"d1", "d2", "d3"}
 
-    @patch("rag.compare_sentences")
+    @patch("zehutai.rag.rag.compare_sentences")
     def test_top_k_limits_results(self, mock_compare: MagicMock) -> None:
         """top_k should limit the number of returned documents."""
         scores = iter([0.9, 0.7, 0.5, 0.3, 0.1])
@@ -510,7 +510,7 @@ class TestRagPipeline:
         result = rag_pipeline("query", docs, top_k=2)
         assert len(result) == 2
 
-    @patch("rag.compare_sentences")
+    @patch("zehutai.rag.rag.compare_sentences")
     def test_chunking_enabled(self, mock_compare: MagicMock) -> None:
         """With chunk_size set, chunked corpus keys should appear in results."""
         mock_compare.return_value = 0.5
@@ -520,7 +520,7 @@ class TestRagPipeline:
         # All result keys should come from chunked doc1
         assert all("doc1" in k for k in result.keys())
 
-    @patch("rag.compare_sentences")
+    @patch("zehutai.rag.rag.compare_sentences")
     def test_rrf_k_parameter_forwarded(self, mock_compare: MagicMock) -> None:
         """Custom rrf_k should be forwarded to reciprocal_rank_fusion."""
         mock_compare.return_value = 0.5
@@ -529,15 +529,15 @@ class TestRagPipeline:
         result = rag_pipeline("query", docs, rrf_k=1)
         assert abs(result["d1"] - 1.0) < 1e-10
 
-    @patch("rag.compare_sentences")
+    @patch("zehutai.rag.rag.compare_sentences")
     def test_empty_documents(self, mock_compare: MagicMock) -> None:
         """Empty document dict should return empty result."""
         result = rag_pipeline("query", {})
         assert result == {}
         mock_compare.assert_not_called()
 
-    @patch("rag.compare_sentences")
-    @patch("rag.generate_queries")
+    @patch("zehutai.rag.rag.compare_sentences")
+    @patch("zehutai.rag.rag.generate_queries")
     def test_query_expansion_calls_generate_queries(
         self,
         mock_gen: MagicMock,
@@ -550,8 +550,8 @@ class TestRagPipeline:
         rag_pipeline("query", docs, use_query_expansion=True)
         mock_gen.assert_called_once_with("query")
 
-    @patch("rag.compare_sentences")
-    @patch("rag.generate_queries")
+    @patch("zehutai.rag.rag.compare_sentences")
+    @patch("zehutai.rag.rag.generate_queries")
     def test_no_query_expansion_skips_generate_queries(
         self,
         mock_gen: MagicMock,
@@ -563,7 +563,7 @@ class TestRagPipeline:
         rag_pipeline("query", docs, use_query_expansion=False)
         mock_gen.assert_not_called()
 
-    @patch("rag.compare_sentences")
+    @patch("zehutai.rag.rag.compare_sentences")
     def test_results_sorted_descending(self, mock_compare: MagicMock) -> None:
         """Pipeline output should be sorted by fused score descending."""
         scores = iter([0.1, 0.9, 0.5])

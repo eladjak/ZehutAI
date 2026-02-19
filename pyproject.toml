@@ -24,6 +24,15 @@ classifiers = [
     "Topic :: Text Processing :: Linguistic",
 ]
 
+[project.scripts]
+zehutai = "zehutai.cli:main"
+
+[tool.setuptools.package-dir]
+"" = "src"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
 dependencies = [
     "torch>=2.0.0",
     "transformers>=4.35.0",
@@ -47,7 +56,7 @@ dev = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = [".", "YehoshuaSimilarityComparisons"]
+pythonpath = ["src"]
 addopts = "-m 'not slow'"
 markers = [
     "slow: marks tests that require model downloads (run with: pytest -m slow --override-ini='addopts=')",
@@ -60,6 +69,7 @@ filterwarnings = [
 
 [tool.mypy]
 python_version = "3.11"
+mypy_path = "src"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
@@ -88,7 +98,7 @@ ignore = [
 ]
 
 [tool.coverage.run]
-source = [".", "YehoshuaSimilarityComparisons"]
+source = ["zehutai"]
 omit = [
     "tests/*",
     "setup.py",

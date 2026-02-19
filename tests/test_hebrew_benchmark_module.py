@@ -13,21 +13,12 @@ Test coverage:
 
 from __future__ import annotations
 
-import sys
 from collections import Counter
-from pathlib import Path
 from typing import Any
 
 import pytest
 
-# Ensure project root and sub-package are importable
-_root = str(Path(__file__).resolve().parent.parent)
-_sub = str(Path(__file__).resolve().parent.parent / "YehoshuaSimilarityComparisons")
-for _p in (_root, _sub):
-    if _p not in sys.path:
-        sys.path.insert(0, _p)
-
-from hebrew_benchmark import (
+from zehutai.hebrew.hebrew_benchmark import (
     HEBREW_SENTENCE_PAIRS,
     format_benchmark_report,
     run_benchmark,

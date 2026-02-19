@@ -8,21 +8,13 @@ with @pytest.mark.slow and are excluded from the default test run.
 from __future__ import annotations
 
 import math
-import sys
-from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest
 
-# Ensure the sub-package is importable even when pytest is invoked from the
-# project root (pyproject.toml already sets pythonpath, but be explicit).
-_sub = str(Path(__file__).resolve().parent.parent / "YehoshuaSimilarityComparisons")
-if _sub not in sys.path:
-    sys.path.insert(0, _sub)
-
-from hebrew_benchmark import (
+from zehutai.hebrew.hebrew_benchmark import (
     HEBREW_BENCHMARK_PAIRS,
     MODEL_CONFIGS,
     _cosine_similarity,
@@ -169,7 +161,7 @@ class TestBenchmarkPairsStructure:
 
     def test_contains_hebrew_text(self) -> None:
         """At least one sentence in every pair must contain Hebrew characters."""
-        # Hebrew Unicode block: U+0590–U+05FF
+        # Hebrew Unicode block: U+0590-U+05FF
         def _has_hebrew(text: str) -> bool:
             return any("\u0590" <= ch <= "\u05ff" for ch in text)
 
@@ -461,7 +453,7 @@ class TestFormatBenchmarkReport:
         report = format_benchmark_report(all_results)
         pos_a = report.index("model-a")
         pos_b = report.index("model-b")
-        # model-a has higher separation score (0.65 > 0.40) → appears first
+        # model-a has higher separation score (0.65 > 0.40) -> appears first
         assert pos_a < pos_b, "model-a (higher sep) should appear before model-b"
 
     def test_single_model_report(self) -> None:

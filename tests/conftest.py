@@ -7,19 +7,11 @@ without downloading large ML models or having torch/transformers installed.
 from __future__ import annotations
 
 import sys
-from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock
 
 import numpy as np
 import pytest
-
-# Ensure project root is on sys.path
-_root = str(Path(__file__).resolve().parent.parent)
-_sub = str(Path(__file__).resolve().parent.parent / "YehoshuaSimilarityComparisons")
-for p in (_root, _sub):
-    if p not in sys.path:
-        sys.path.insert(0, p)
 
 
 # ---------------------------------------------------------------------------
@@ -153,7 +145,7 @@ def mock_sentence_transformer(monkeypatch: pytest.MonkeyPatch) -> MagicMock:
     The mock encode() returns deterministic normalized random embeddings.
     The mock similarity() computes actual cosine similarity on those embeddings.
     """
-    import embeddings_comparison as ec
+    import zehutai.embeddings_comparison as ec
 
     mock_model = MagicMock()
 

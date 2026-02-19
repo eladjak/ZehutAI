@@ -16,7 +16,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-# Ensure project root is on sys.path (mirrors conftest.py approach)
+# Ensure project root is on sys.path so cli.py can be imported
 _root = str(Path(__file__).resolve().parent.parent)
 if _root not in sys.path:
     sys.path.insert(0, _root)

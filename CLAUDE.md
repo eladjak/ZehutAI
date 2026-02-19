@@ -120,3 +120,19 @@ ZehutAI/
 - Use `@pytest.mark.slow` for tests that download models
 - `conftest.py` mocks torch/transformers/gensim/nltk at sys.modules level
 - Run `python -m pytest` for fast iteration (slow auto-skipped)
+
+---
+
+## Agent Tools & MCP (חובה!)
+
+### לפני כתיבת קוד
+- **Context7 MCP**: `resolve-library-id` → `query-docs` - לבדוק API/syntax עדכני
+- **Octocode MCP**: `githubSearchCode` - לחפש implementations אמיתיים ב-GitHub
+- **DeepWiki MCP**: `ask_question` - לשאול על ריפו ספציפי
+
+### בסיום כל איטרציה
+1. עדכן PROGRESS.md עם מה שנעשה בפועל
+2. הרץ typecheck: `python -m mypy .`
+3. הרץ linting: `ruff check .`
+4. הרץ tests: `python -m pytest`
+5. commit עם הודעה: `feat/fix/refactor: תיאור באנגלית`
