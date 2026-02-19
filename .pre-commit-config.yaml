@@ -34,34 +34,38 @@ repos:
         args: ['--baseline', '.secrets.baseline']
         stages: [commit]
 
-  # Custom secret pattern hook: Scans staged changes for common secret patterns
-  # Patterns match: OpenAI API keys (sk-*), GitHub tokens (ghp_*, github_pat_),
-  # Slack tokens (xox*), and hardcoded password/secret/token assignments
+  # Custom secret pattern hook (cross-platform Python script)
+  # Scans staged file contents for: OpenAI keys, GitHub tokens, Slack tokens,
+  # hardcoded password/secret/token assignments
   - repo: local
     hooks:
       - id: detect-secrets-custom
         name: Detect common secret patterns
-        entry: bash -c 'patterns=(
-          "sk-[a-zA-Z0-9_-]{20,}"
-          "api[_-]?key\s*[:=]\s*[\"'\''][a-zA-Z0-9]"
-          "password\s*[:=]\s*[\"'\''][^'\''"]{8,}"
-          "secret\s*[:=]\s*[\"'\''][a-zA-Z0-9]"
-          "token\s*[:=]\s*[\"'\''][a-zA-Z0-9]"
-          "OPENAI_API_KEY\s*=\s*[\"'\'']sk-"
-          "ghp_[a-zA-Z0-9]{36}"
-          "github_pat_[a-zA-Z0-9_]{82}"
-          "xox[bpors]-[a-zA-Z0-9-]+"
-          );
-          found=0;
-          for pattern in "${patterns[@]}"; do
-            matches=$(git diff --cached --unified=0 | grep "^+" | grep -v "^+++" | grep -iE "$pattern" || true);
-            if [ -n "$matches" ]; then
-              echo "ERROR: Potential secret pattern detected: $pattern";
-              echo "$matches" | head -3;
-              found=1;
-            fi;
-          done;
-          exit $found'
+        entry: python -c "
+import re, sys
+patterns = [
+    r'sk-[a-zA-Z0-9_-]{20,}',
+    r'api[_-]?key\\s*[:=]\\s*[\"\\x27][a-zA-Z0-9]',
+    r'password\\s*[:=]\\s*[\"\\x27][^\"\\x27]{8,}',
+    r'secret\\s*[:=]\\s*[\"\\x27][a-zA-Z0-9]',
+    r'token\\s*[:=]\\s*[\"\\x27][a-zA-Z0-9]',
+    r'OPENAI_API_KEY\\s*=\\s*[\"\\x27]sk-',
+    r'ghp_[a-zA-Z0-9]{36}',
+    r'github_pat_[a-zA-Z0-9_]{82}',
+    r'xox[bpors]-[a-zA-Z0-9-]+',
+]
+found = False
+for path in sys.argv[1:]:
+    try:
+        text = open(path, encoding='utf-8', errors='ignore').read()
+    except OSError:
+        continue
+    for pat in patterns:
+        if re.search(pat, text, re.IGNORECASE):
+            print(f'ERROR: Secret pattern [{pat[:30]}...] in {path}')
+            found = True
+sys.exit(1 if found else 0)
+"
         language: system
         stages: [commit]
         files: '(\.py|\.yaml|\.yml|\.toml|\.sh|\.env)$'

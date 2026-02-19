@@ -5,14 +5,11 @@
 
 ## Current State
 Research project for Hebrew/multilingual text similarity and RAG pipelines.
-All 3 original runtime bugs fixed. Comprehensive test suite with 101 tests (all passing, +3 slow integration stubs).
-Duplicate code consolidated. Modern Python packaging via pyproject.toml.
-Input validation added to public API. Code quality significantly improved.
-Leaked API key scrubbed from entire git history. CI/CD pipeline and pre-commit secret scanning added.
-Hebrew NLP benchmark test suite with 10 sentence pairs added.
-Model caching added to sim.py (BERT/RoBERTa/NN models cached at module level).
-RAG pipeline enhanced with text preprocessing, chunk overlap, and configurable top-k.
-Shareable .pre-commit-config.yaml created (ruff, detect-secrets, standard hooks).
+**288 tests passing** (+5 slow stubs), ~5s runtime. CI/CD with 70% coverage threshold.
+Full-featured codebase with: sentence similarity, multi-method comparison (TF-IDF, BERT, RoBERTa, Doc2Vec),
+RAG pipeline with Hebrew preprocessing and chunking, IR evaluation metrics (P@k, R@k, AP, MRR, NDCG),
+Hebrew benchmark suite (20 sentence pairs), and CLI interface.
+Model caching across all modules. Pre-commit hooks (cross-platform). src/ layout plan ready for execution.
 
 ## What Was Done
 - [x] Initial repo setup with GitHub remote
@@ -201,15 +198,21 @@ python -m pytest tests/ -v --tb=short  # Compact output on failure
 3. ~~Force-push to GitHub~~ -- DONE (branch synced with origin/main)
 4. **IMPORTANT:** Rotate the OpenAI API key on https://platform.openai.com/api-keys (the old key is compromised)
 5. ~~Add model caching to sim.py methodBert/methodRoBERTa~~ -- DONE (2026-02-18)
-6. Consider restructuring into a proper `src/` layout
+6. ~~Consider restructuring into a proper `src/` layout~~ -- PLAN READY at .omc/plans/src-layout-plan.md (2026-02-18)
 7. ~~Set up CI/CD (GitHub Actions for pytest + ruff + mypy)~~ -- DONE (2026-02-17)
-8. ~~Add integration tests with `@pytest.mark.slow`~~ -- DONE (3 stubs, 2026-02-18)
+8. ~~Add integration tests with `@pytest.mark.slow`~~ -- DONE (5 stubs, 2026-02-18)
 9. ~~Add Hebrew-specific test data and evaluation benchmarks~~ -- DONE (2026-02-17)
 10. ~~Improve RAG pipeline: chunk overlap, configurable top-k, preprocessing~~ -- DONE (2026-02-18)
-11. Run `pre-commit install` to activate .pre-commit-config.yaml hooks
-12. Add model caching to rag.py `generate_queries()` (DictaLM model loaded every call)
-13. Add Hebrew-specific chunking (handle right-to-left, Hebrew word boundaries)
-14. Consider adding evaluation metrics (precision@k, NDCG) to benchmark suite
+11. ~~Run `pre-commit install`~~ -- DONE (2026-02-18, fixed for Windows cross-platform)
+12. ~~Add model caching to rag.py `generate_queries()`~~ -- DONE (_get_or_load_rag_model, 2026-02-18)
+13. ~~Add Hebrew-specific preprocessing~~ -- DONE (preprocess_hebrew with niqqud removal, 2026-02-18)
+14. ~~Add evaluation metrics (precision@k, NDCG)~~ -- DONE (evaluation.py, 2026-02-18)
+15. ~~Add Hebrew benchmark suite~~ -- DONE (20 pairs, run_benchmark, format_report, 2026-02-18)
+16. ~~Add CLI interface~~ -- DONE (cli.py: compare, similarity, rag, benchmark, 2026-02-18)
+17. ~~Add coverage to CI~~ -- DONE (70% threshold, coverage.xml artifact, 2026-02-18)
+18. ~~Fix pre-commit for Windows~~ -- DONE (replaced bash hook with Python, 2026-02-18)
+19. Execute src/ layout migration (plan ready at .omc/plans/src-layout-plan.md)
+20. **IMPORTANT:** Rotate OpenAI API key at https://platform.openai.com/api-keys
 
 ## Key Decisions Made
 - Using sentence-transformers/paraphrase-multilingual-mpnet-base-v2 as primary model (good Hebrew support)
@@ -251,10 +254,26 @@ python -m pytest tests/ -v --tb=short  # Compact output on failure
 - `.pre-commit-config.yaml` - Created (new file) - ruff, detect-secrets, standard hooks
 - `PROGRESS.md` - Updated with all changes
 
+## Files Modified/Created (2026-02-18 session 2)
+- `YehoshuaSimilarityComparisons/rag.py` - Added _get_or_load_rag_model, preprocess_hebrew, rag_pipeline
+- `YehoshuaSimilarityComparisons/evaluation.py` - NEW: IR metrics (P@k, R@k, AP, MRR, NDCG, F1)
+- `YehoshuaSimilarityComparisons/hebrew_benchmark.py` - NEW: 20 Hebrew pairs, run_benchmark, format_report
+- `cli.py` - NEW: argparse CLI (compare, similarity, rag, benchmark subcommands)
+- `tests/test_rag.py` - Extended with 22 new tests (cache, Hebrew, pipeline)
+- `tests/test_evaluation.py` - NEW: 50 tests for evaluation metrics
+- `tests/test_cli.py` - NEW: 25 tests for CLI
+- `tests/test_hebrew_benchmark_module.py` - NEW: 33 tests for benchmark corpus
+- `tests/test_hebrew_model_benchmark.py` - NEW: 57 tests for model benchmark harness
+- `.github/workflows/ci.yml` - Added coverage reporting + artifact upload
+- `pyproject.toml` - Added [tool.coverage] config
+- `.pre-commit-config.yaml` - Fixed: replaced bash hook with cross-platform Python
+- `.omc/plans/src-layout-plan.md` - NEW: detailed migration plan for src/ layout
+- `CLAUDE.md` - Full rewrite with all new modules and functions
+- `PROGRESS.md` - Updated
+
 ## Notes for Next Session
 - **IMPORTANT:** Rotate the OpenAI API key at https://platform.openai.com/api-keys
-- Run `pre-commit install` to activate the new .pre-commit-config.yaml hooks
-- Consider `src/` layout restructuring for cleaner packaging
-- rag.py `generate_queries()` still loads DictaLM model on every call - add caching
-- Hebrew-specific chunking could improve RAG quality for RTL text
-- Slow integration tests need a real model environment to run (GPU or large download)
+- Execute src/ layout migration using plan at `.omc/plans/src-layout-plan.md`
+- Slow integration tests (5) need a real model environment (GPU or large download)
+- Consider publishing as a pip-installable package after src/ migration
+- Coverage is 72% - could improve sim.py coverage (currently 47%)
