@@ -102,3 +102,9 @@ ruff check .
 ## Status
 
 Early-stage research project. See [PROGRESS.md](PROGRESS.md) for current status and next steps.
+
+---
+
+⭐ If you find this useful, please star the repo!
+
+*[README בעברית](README.he.md)*
