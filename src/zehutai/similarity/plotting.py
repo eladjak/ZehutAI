@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import transformers
 from transformers import BertTokenizer
+
 from zehutai.similarity.sim import Similarity
 
 

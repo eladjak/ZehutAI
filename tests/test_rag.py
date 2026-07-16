@@ -14,7 +14,6 @@ import pytest
 from zehutai.rag.rag import (
     ALL_DOCUMENTS,
     _get_or_load_rag_model,
-    _rag_model_cache,
     chunk_documents,
     generate_output,
     preprocess_hebrew,
@@ -24,10 +23,10 @@ from zehutai.rag.rag import (
     vector_search,
 )
 
-
 # ---------------------------------------------------------------------------
 # preprocess_text tests
 # ---------------------------------------------------------------------------
+
 
 class TestPreprocessText:
     """Tests for text normalization."""
@@ -60,6 +59,7 @@ class TestPreprocessText:
 # ---------------------------------------------------------------------------
 # chunk_documents tests
 # ---------------------------------------------------------------------------
+
 
 class TestChunkDocuments:
     """Tests for document chunking with overlap."""
@@ -137,6 +137,7 @@ class TestChunkDocuments:
 # vector_search with top_k tests
 # ---------------------------------------------------------------------------
 
+
 class TestVectorSearchTopK:
     """Tests for vector_search top_k parameter."""
 
@@ -171,6 +172,7 @@ class TestVectorSearchTopK:
 # reciprocal_rank_fusion tests (pure logic, no models)
 # ---------------------------------------------------------------------------
 
+
 class TestReciprocalRankFusion:
     """Tests for the Reciprocal Rank Fusion algorithm."""
 
@@ -183,9 +185,7 @@ class TestReciprocalRankFusion:
 
     def test_single_query_multiple_docs(self) -> None:
         """All documents should appear in fused results."""
-        search_results = {
-            "q1": {"doc1": 0.9, "doc2": 0.7, "doc3": 0.5}
-        }
+        search_results = {"q1": {"doc1": 0.9, "doc2": 0.7, "doc3": 0.5}}
         result = reciprocal_rank_fusion(search_results)
         assert len(result) == 3
         assert set(result.keys()) == {"doc1", "doc2", "doc3"}
@@ -262,13 +262,12 @@ class TestReciprocalRankFusion:
 # vector_search tests (mocked compare_sentences)
 # ---------------------------------------------------------------------------
 
+
 class TestVectorSearch:
     """Tests for vector_search with mocked similarity."""
 
     @patch("zehutai.rag.rag.compare_sentences")
-    def test_returns_dict(
-        self, mock_compare: MagicMock, sample_documents: dict[str, str]
-    ) -> None:
+    def test_returns_dict(self, mock_compare: MagicMock, sample_documents: dict[str, str]) -> None:
         """vector_search should return a dict."""
         mock_compare.return_value = 0.5
         result = vector_search("test query", sample_documents)
@@ -284,9 +283,7 @@ class TestVectorSearch:
         assert len(result) == len(sample_documents)
 
     @patch("zehutai.rag.rag.compare_sentences")
-    def test_results_sorted_descending(
-        self, mock_compare: MagicMock
-    ) -> None:
+    def test_results_sorted_descending(self, mock_compare: MagicMock) -> None:
         """Results should be sorted by score descending."""
         # Return different scores for different docs
         scores = iter([0.3, 0.9, 0.6])
@@ -298,9 +295,7 @@ class TestVectorSearch:
         assert result_scores == sorted(result_scores, reverse=True)
 
     @patch("zehutai.rag.rag.compare_sentences")
-    def test_calls_compare_for_each_doc(
-        self, mock_compare: MagicMock
-    ) -> None:
+    def test_calls_compare_for_each_doc(self, mock_compare: MagicMock) -> None:
         """compare_sentences should be called once per document."""
         mock_compare.return_value = 0.5
         docs = {"d1": "a", "d2": "b", "d3": "c"}
@@ -318,6 +313,7 @@ class TestVectorSearch:
 # ---------------------------------------------------------------------------
 # generate_output tests (pure string formatting)
 # ---------------------------------------------------------------------------
+
 
 class TestGenerateOutput:
     """Tests for generate_output."""
@@ -347,6 +343,7 @@ class TestGenerateOutput:
 # ALL_DOCUMENTS constant
 # ---------------------------------------------------------------------------
 
+
 class TestAllDocuments:
     """Tests for the predefined documents constant."""
 
@@ -369,6 +366,7 @@ class TestAllDocuments:
 # ---------------------------------------------------------------------------
 # Model caching (_get_or_load_rag_model / _rag_model_cache) tests
 # ---------------------------------------------------------------------------
+
 
 class TestRagModelCache:
     """Tests for module-level RAG model caching."""
@@ -408,9 +406,7 @@ class TestRagModelCache:
 
     @patch("zehutai.rag.rag.AutoModelForCausalLM")
     @patch("zehutai.rag.rag.AutoTokenizer")
-    def test_returns_tuple(
-        self, mock_tokenizer_cls: MagicMock, mock_model_cls: MagicMock
-    ) -> None:
+    def test_returns_tuple(self, mock_tokenizer_cls: MagicMock, mock_model_cls: MagicMock) -> None:
         """Should return a (model, tokenizer) two-tuple."""
         from zehutai.rag import rag
 
@@ -425,6 +421,7 @@ class TestRagModelCache:
 # preprocess_hebrew tests
 # ---------------------------------------------------------------------------
 
+
 class TestPreprocessHebrew:
     """Tests for Hebrew-aware text preprocessing."""
 
@@ -436,7 +433,7 @@ class TestPreprocessHebrew:
     def test_removes_cantillation(self) -> None:
         """Cantillation marks (U+0591 range) should be stripped."""
         # U+05C1 = shin dot, U+05B0 = shva
-        text_with_marks = "\u05E9\u05C1\u05B8\u05DC\u05D5\u05B9\u05DD"
+        text_with_marks = "\u05e9\u05c1\u05b8\u05dc\u05d5\u05b9\u05dd"
         result = preprocess_hebrew(text_with_marks)
         assert all(ord(c) < 0x0591 or ord(c) > 0x05C7 for c in result)
 
@@ -482,6 +479,7 @@ class TestPreprocessHebrew:
 # rag_pipeline tests
 # ---------------------------------------------------------------------------
 
+
 class TestRagPipeline:
     """Tests for the end-to-end RAG pipeline function."""
 
@@ -518,7 +516,7 @@ class TestRagPipeline:
         docs = {"doc1": " ".join(f"w{i}" for i in range(15))}
         result = rag_pipeline("query", docs, chunk_size=5, chunk_overlap=1)
         # All result keys should come from chunked doc1
-        assert all("doc1" in k for k in result.keys())
+        assert all("doc1" in k for k in result)
 
     @patch("zehutai.rag.rag.compare_sentences")
     def test_rrf_k_parameter_forwarded(self, mock_compare: MagicMock) -> None:

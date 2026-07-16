@@ -87,9 +87,9 @@ class TestHebrewSentencePairsCorpus:
 
     def test_corpus_has_exactly_20_pairs(self) -> None:
         """HEBREW_SENTENCE_PAIRS must contain exactly 20 sentence pairs."""
-        assert (
-            len(HEBREW_SENTENCE_PAIRS) == 20
-        ), f"Expected 20 pairs, got {len(HEBREW_SENTENCE_PAIRS)}"
+        assert len(HEBREW_SENTENCE_PAIRS) == 20, (
+            f"Expected 20 pairs, got {len(HEBREW_SENTENCE_PAIRS)}"
+        )
 
     def test_high_category_count_is_7(self) -> None:
         """There must be exactly 7 pairs with category='high'."""
@@ -117,16 +117,16 @@ class TestHebrewSentencePairsCorpus:
         for i, pair in enumerate(HEBREW_SENTENCE_PAIRS):
             for key in _REQUIRED_PAIR_KEYS:
                 val = pair.get(key, "")
-                assert (
-                    isinstance(val, str) and val
-                ), f"Pair {i}: field '{key}' is not a non-empty string (got {val!r})"
+                assert isinstance(val, str) and val, (
+                    f"Pair {i}: field '{key}' is not a non-empty string (got {val!r})"
+                )
 
     def test_all_categories_are_valid(self) -> None:
         """All category values must be 'high', 'medium', or 'low'."""
         for i, pair in enumerate(HEBREW_SENTENCE_PAIRS):
-            assert (
-                pair["category"] in _VALID_CATEGORIES
-            ), f"Pair {i}: unexpected category '{pair['category']}'"
+            assert pair["category"] in _VALID_CATEGORIES, (
+                f"Pair {i}: unexpected category '{pair['category']}'"
+            )
 
     def test_all_ids_are_unique(self) -> None:
         """Each pair id must be unique within the corpus."""
@@ -145,33 +145,33 @@ class TestHebrewSentencePairsCorpus:
             return any("\u0590" <= ch <= "\u05ff" for ch in text)
 
         for i, pair in enumerate(HEBREW_SENTENCE_PAIRS):
-            assert _has_hebrew(pair["sent1"]) or _has_hebrew(
-                pair["sent2"]
-            ), f"Pair {i} ({pair['id']}): no Hebrew characters found"
+            assert _has_hebrew(pair["sent1"]) or _has_hebrew(pair["sent2"]), (
+                f"Pair {i} ({pair['id']}): no Hebrew characters found"
+            )
 
     def test_high_ids_start_with_high_prefix(self) -> None:
         """Pairs with category='high' should have ids starting with 'high_'."""
         high_pairs = [p for p in HEBREW_SENTENCE_PAIRS if p["category"] == "high"]
         for pair in high_pairs:
-            assert pair["id"].startswith(
-                "high_"
-            ), f"High pair id '{pair['id']}' does not start with 'high_'"
+            assert pair["id"].startswith("high_"), (
+                f"High pair id '{pair['id']}' does not start with 'high_'"
+            )
 
     def test_medium_ids_start_with_medium_prefix(self) -> None:
         """Pairs with category='medium' should have ids starting with 'medium_'."""
         medium_pairs = [p for p in HEBREW_SENTENCE_PAIRS if p["category"] == "medium"]
         for pair in medium_pairs:
-            assert pair["id"].startswith(
-                "medium_"
-            ), f"Medium pair id '{pair['id']}' does not start with 'medium_'"
+            assert pair["id"].startswith("medium_"), (
+                f"Medium pair id '{pair['id']}' does not start with 'medium_'"
+            )
 
     def test_low_ids_start_with_low_prefix(self) -> None:
         """Pairs with category='low' should have ids starting with 'low_'."""
         low_pairs = [p for p in HEBREW_SENTENCE_PAIRS if p["category"] == "low"]
         for pair in low_pairs:
-            assert pair["id"].startswith(
-                "low_"
-            ), f"Low pair id '{pair['id']}' does not start with 'low_'"
+            assert pair["id"].startswith("low_"), (
+                f"Low pair id '{pair['id']}' does not start with 'low_'"
+            )
 
 
 # ---------------------------------------------------------------------------
@@ -372,8 +372,7 @@ class TestRunBenchmark:
         stats = results["stats"]
         expected = stats["high_avg"] - stats["low_avg"]
         assert abs(stats["separation_score"] - expected) < 1e-9, (
-            f"separation_score {stats['separation_score']:.6f} != "
-            f"high_avg - low_avg {expected:.6f}"
+            f"separation_score {stats['separation_score']:.6f} != high_avg - low_avg {expected:.6f}"
         )
 
     def test_pair_entries_preserve_original_fields(self) -> None:

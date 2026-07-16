@@ -16,15 +16,16 @@ import json
 import sys
 from typing import Any
 
-
 # ---------------------------------------------------------------------------
 # Graceful import helpers
 # ---------------------------------------------------------------------------
+
 
 def _import_compare_sentences() -> Any:
     """Import compare_sentences, raising ImportError with helpful message if unavailable."""
     try:
         from zehutai.embeddings_comparison import compare_sentences
+
         return compare_sentences
     except ImportError as exc:
         raise ImportError(
@@ -38,6 +39,7 @@ def _import_similarity_class() -> Any:
     """Import the Similarity class from zehutai.similarity."""
     try:
         from zehutai.similarity.sim import Similarity
+
         return Similarity
     except ImportError as exc:
         raise ImportError(
@@ -50,7 +52,8 @@ def _import_similarity_class() -> Any:
 def _import_rag_functions() -> tuple[Any, Any, Any]:
     """Import vector_search, reciprocal_rank_fusion, and ALL_DOCUMENTS from zehutai.rag."""
     try:
-        from zehutai.rag.rag import vector_search, reciprocal_rank_fusion, ALL_DOCUMENTS
+        from zehutai.rag.rag import ALL_DOCUMENTS, reciprocal_rank_fusion, vector_search
+
         return vector_search, reciprocal_rank_fusion, ALL_DOCUMENTS
     except ImportError as exc:
         raise ImportError(
@@ -64,10 +67,11 @@ def _import_benchmark_functions() -> tuple[Any, Any, Any]:
     """Import run_benchmark, evaluate_benchmark, and format_benchmark_report."""
     try:
         from zehutai.hebrew.hebrew_benchmark import (
-            run_benchmark,
             evaluate_benchmark,
             format_benchmark_report,
+            run_benchmark,
         )
+
         return run_benchmark, evaluate_benchmark, format_benchmark_report
     except ImportError as exc:
         raise ImportError(
@@ -80,6 +84,7 @@ def _import_benchmark_functions() -> tuple[Any, Any, Any]:
 # ---------------------------------------------------------------------------
 # Subcommand handlers
 # ---------------------------------------------------------------------------
+
 
 def cmd_compare(args: argparse.Namespace) -> int:
     """Handle the 'compare' subcommand.
@@ -149,8 +154,11 @@ def cmd_similarity(args: argparse.Namespace) -> int:
                 actual_data = data if data else sim.texts
                 try:
                     idx = int(doc_tag)
-                    text = (actual_data[idx] if actual_data and idx < len(actual_data)
-                            else f"Document {doc_tag}")
+                    text = (
+                        actual_data[idx]
+                        if actual_data and idx < len(actual_data)
+                        else f"Document {doc_tag}"
+                    )
                 except (ValueError, IndexError):
                     text = f"Document {doc_tag}"
                 preview = text[:50] + "..." if len(text) > 50 else text
@@ -173,8 +181,10 @@ def cmd_similarity(args: argparse.Namespace) -> int:
                 print(f"  [{score:.4f}]  {preview}")
 
         else:
-            print(f"Unknown method: '{method}'. Choose from: tfidf, nltk, bert, roberta",
-                  file=sys.stderr)
+            print(
+                f"Unknown method: '{method}'. Choose from: tfidf, nltk, bert, roberta",
+                file=sys.stderr,
+            )
             return 1
 
         return 0
@@ -246,9 +256,7 @@ def cmd_benchmark(args: argparse.Namespace) -> int:
         Exit code (0 for success, 1 for error).
     """
     try:
-        run_benchmark, evaluate_benchmark, format_benchmark_report = (
-            _import_benchmark_functions()
-        )
+        run_benchmark, evaluate_benchmark, format_benchmark_report = _import_benchmark_functions()
     except ImportError as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 1
@@ -267,8 +275,10 @@ def cmd_benchmark(args: argparse.Namespace) -> int:
             # Include both metrics summary and per-pair scores
             output: dict[str, Any] = {
                 "model": model_name,
-                "metrics": {k: (None if (isinstance(v, float) and v != v) else v)
-                            for k, v in metrics.items()},
+                "metrics": {
+                    k: (None if (isinstance(v, float) and v != v) else v)
+                    for k, v in metrics.items()
+                },
                 "pairs": results,
             }
             print(json.dumps(output, ensure_ascii=False, indent=2))
@@ -288,6 +298,7 @@ def cmd_benchmark(args: argparse.Namespace) -> int:
 # ---------------------------------------------------------------------------
 # Argument parser construction
 # ---------------------------------------------------------------------------
+
 
 def build_parser() -> argparse.ArgumentParser:
     """Build and return the top-level argument parser with all subcommands.
@@ -426,6 +437,7 @@ def build_parser() -> argparse.ArgumentParser:
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
+
 
 def main(argv: list[str] | None = None) -> int:
     """Main entry point for the ZehutAI CLI.

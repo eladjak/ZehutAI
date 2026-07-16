@@ -1,6 +1,6 @@
 [build-system]
 requires = ["setuptools>=68.0", "wheel"]
-build-backend = "setuptools.backends._legacy:_Backend"
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "zehutai"
@@ -24,15 +24,6 @@ classifiers = [
     "Topic :: Text Processing :: Linguistic",
 ]
 
-[project.scripts]
-zehutai = "zehutai.cli:main"
-
-[tool.setuptools.package-dir]
-"" = "src"
-
-[tool.setuptools.packages.find]
-where = ["src"]
-
 dependencies = [
     "torch>=2.0.0",
     "transformers>=4.35.0",
@@ -45,6 +36,16 @@ dependencies = [
     "matplotlib>=3.7.0",
     "python-dotenv>=1.0.0",
 ]
+
+[project.scripts]
+zehutai = "zehutai.cli:main"
+
+[tool.setuptools.package-dir]
+"" = "src"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
 
 [project.optional-dependencies]
 dev = [
@@ -77,6 +78,8 @@ ignore_missing_imports = true
 
 [tool.ruff]
 target-version = "py311"
+# Yehoshua's original research dir — his working style, not lint-governed
+extend-exclude = ["YehoshuaSimilarityComparisons"]
 line-length = 100
 
 [tool.ruff.lint]
@@ -95,6 +98,8 @@ ignore = [
     "N802",  # function name should be lowercase (project uses camelCase)
     "N806",  # variable in function should be lowercase
     "N803",  # argument name should be lowercase
+    "RUF002", # ambiguous-unicode in docstrings — Hebrew NLP project, Hebrew text is intentional
+    "RUF003", # ambiguous-unicode in comments — same
 ]
 
 [tool.coverage.run]

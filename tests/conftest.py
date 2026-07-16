@@ -13,11 +13,11 @@ from unittest.mock import MagicMock
 import numpy as np
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # Mock heavy ML imports so tests can run without torch/transformers/etc.
 # These mocks are installed BEFORE any project module is imported.
 # ---------------------------------------------------------------------------
+
 
 def _install_mock_ml_modules() -> dict[str, MagicMock]:
     """Install mock modules for torch, transformers, sentence_transformers, etc."""
@@ -88,6 +88,7 @@ _ml_mocks = _install_mock_ml_modules()
 # Sample data fixtures
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture
 def sample_sentences() -> list[str]:
     """Two English sentences for similarity comparison."""
@@ -137,6 +138,7 @@ def sample_query() -> str:
 # ---------------------------------------------------------------------------
 # Mock model fixtures
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture
 def mock_sentence_transformer(monkeypatch: pytest.MonkeyPatch) -> MagicMock:

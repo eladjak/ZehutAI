@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import math
 from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import numpy as np
 import pytest
@@ -22,7 +22,6 @@ from zehutai.hebrew.hebrew_benchmark import (
     format_benchmark_report,
     run_benchmark,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -48,6 +47,7 @@ def _make_mock_model(scores: list[float] | None = None) -> MagicMock:
     call_index = [0]
 
     if scores is None:
+
         def _encode(sentences: list[str], **kwargs: Any) -> np.ndarray:
             n = len(sentences)
             emb = np.ones((n, 4), dtype=np.float32)
@@ -55,6 +55,7 @@ def _make_mock_model(scores: list[float] | None = None) -> MagicMock:
             return emb / norms
 
     else:
+
         def _encode(sentences: list[str], **kwargs: Any) -> np.ndarray:  # type: ignore[misc]
             idx = call_index[0]
             call_index[0] += 1
@@ -62,7 +63,7 @@ def _make_mock_model(scores: list[float] | None = None) -> MagicMock:
             # Construct two unit vectors with cosine = target.
             # a = [1, 0], b = [target, sqrt(1 - target^2)] gives cos(a, b) = target.
             target_clamped = float(np.clip(target, -1.0, 1.0))
-            sin_val = math.sqrt(max(0.0, 1.0 - target_clamped ** 2))
+            sin_val = math.sqrt(max(0.0, 1.0 - target_clamped**2))
             emb = np.array(
                 [[1.0, 0.0], [target_clamped, sin_val]],
                 dtype=np.float32,
@@ -100,7 +101,7 @@ def _make_results(
             "score": score,
             "model": "mock-model",
         }
-        for i, (label, score, cat) in enumerate(zip(labels, scores, categories))
+        for i, (label, score, cat) in enumerate(zip(labels, scores, categories, strict=False))
     ]
 
 
@@ -133,9 +134,7 @@ class TestBenchmarkPairsStructure:
         """All label values must be 'high', 'medium', or 'low'."""
         valid_labels = {"high", "medium", "low"}
         for i, pair in enumerate(HEBREW_BENCHMARK_PAIRS):
-            assert pair["label"] in valid_labels, (
-                f"Pair {i}: unexpected label '{pair['label']}'"
-            )
+            assert pair["label"] in valid_labels, f"Pair {i}: unexpected label '{pair['label']}'"
 
     def test_label_distribution_minimum_three_each(self) -> None:
         """There must be at least 3 pairs for each of high, medium, and low."""
@@ -143,9 +142,7 @@ class TestBenchmarkPairsStructure:
 
         counts = Counter(p["label"] for p in HEBREW_BENCHMARK_PAIRS)
         for label in ("high", "medium", "low"):
-            assert counts[label] >= 3, (
-                f"Label '{label}' has only {counts[label]} pairs (need >= 3)"
-            )
+            assert counts[label] >= 3, f"Label '{label}' has only {counts[label]} pairs (need >= 3)"
 
     def test_s1_and_s2_are_different(self) -> None:
         """s1 and s2 should not be identical within a pair."""
@@ -161,6 +158,7 @@ class TestBenchmarkPairsStructure:
 
     def test_contains_hebrew_text(self) -> None:
         """At least one sentence in every pair must contain Hebrew characters."""
+
         # Hebrew Unicode block: U+0590-U+05FF
         def _has_hebrew(text: str) -> bool:
             return any("\u0590" <= ch <= "\u05ff" for ch in text)
@@ -173,8 +171,7 @@ class TestBenchmarkPairsStructure:
     def test_high_similarity_category_paraphrase_exists(self) -> None:
         """There should be at least one pair with label=high and category=paraphrase."""
         found = any(
-            p["label"] == "high" and p["category"] == "paraphrase"
-            for p in HEBREW_BENCHMARK_PAIRS
+            p["label"] == "high" and p["category"] == "paraphrase" for p in HEBREW_BENCHMARK_PAIRS
         )
         assert found, "No high-similarity paraphrase pairs found"
 
@@ -527,7 +524,7 @@ class TestRunBenchmark:
         mock_model = _make_mock_model()
         pairs = HEBREW_BENCHMARK_PAIRS[:3]
         results = run_benchmark("mock-model", pairs=pairs, model_instance=mock_model)
-        for result, orig in zip(results, pairs):
+        for result, orig in zip(results, pairs, strict=False):
             for key in ("s1", "s2", "label", "category"):
                 assert key in result, f"Key '{key}' missing from result"
                 assert result[key] == orig[key], (
@@ -582,8 +579,8 @@ class TestRunBenchmark:
         """End-to-end: run -> evaluate -> format should produce a non-empty report."""
         # Use a mock model that returns plausible scores
         high_scores = [0.85] * 7  # high-label pairs
-        med_scores = [0.55] * 3   # medium-label pairs
-        low_scores = [0.20] * 4   # low-label pairs
+        med_scores = [0.55] * 3  # medium-label pairs
+        low_scores = [0.20] * 4  # low-label pairs
         all_scores = high_scores + med_scores + low_scores
         mock_model = _make_mock_model(scores=all_scores)
 

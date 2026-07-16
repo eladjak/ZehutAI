@@ -12,7 +12,7 @@ import json
 import sys
 from pathlib import Path
 from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -23,7 +23,7 @@ if _root not in sys.path:
 
 # Import CLI module under test
 import cli  # noqa: E402  (must come after sys.path setup)
-from cli import (
+from cli import (  # noqa: E402  (must come after sys.path setup)
     build_parser,
     cmd_benchmark,
     cmd_compare,
@@ -32,20 +32,22 @@ from cli import (
     main,
 )
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _make_namespace(**kwargs: Any) -> Any:
     """Return a SimpleNamespace-like argparse.Namespace for testing handlers."""
     import argparse
+
     return argparse.Namespace(**kwargs)
 
 
 # ---------------------------------------------------------------------------
 # Test: compare subcommand
 # ---------------------------------------------------------------------------
+
 
 class TestCompareCmd:
     """Tests for the 'compare' subcommand handler."""
@@ -61,11 +63,14 @@ class TestCompareCmd:
         assert exit_code == 0
         mock_compare.assert_called_once_with(["hello world", "hi there"])
 
-    def test_compare_import_error_returns_1(self, monkeypatch: pytest.MonkeyPatch,
-                                            capsys: pytest.CaptureFixture) -> None:
+    def test_compare_import_error_returns_1(
+        self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture
+    ) -> None:
         """compare returns exit code 1 when import fails."""
+
         def _raise() -> Any:
             raise ImportError("mock import error")
+
         monkeypatch.setattr(cli, "_import_compare_sentences", _raise)
 
         args = _make_namespace(sentence1="a", sentence2="b")
@@ -75,8 +80,9 @@ class TestCompareCmd:
         captured = capsys.readouterr()
         assert "Error" in captured.err
 
-    def test_compare_via_main(self, monkeypatch: pytest.MonkeyPatch,
-                              capsys: pytest.CaptureFixture) -> None:
+    def test_compare_via_main(
+        self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture
+    ) -> None:
         """main() dispatches to compare and prints similarity score."""
         mock_compare = MagicMock(return_value=0.72)
         monkeypatch.setattr(cli, "_import_compare_sentences", lambda: mock_compare)
@@ -87,8 +93,9 @@ class TestCompareCmd:
         captured = capsys.readouterr()
         assert "0.720000" in captured.out
 
-    def test_compare_exception_returns_1(self, monkeypatch: pytest.MonkeyPatch,
-                                         capsys: pytest.CaptureFixture) -> None:
+    def test_compare_exception_returns_1(
+        self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture
+    ) -> None:
         """compare returns 1 if compare_sentences raises an unexpected exception."""
         mock_compare = MagicMock(side_effect=RuntimeError("encoding failed"))
         monkeypatch.setattr(cli, "_import_compare_sentences", lambda: mock_compare)
@@ -104,6 +111,7 @@ class TestCompareCmd:
 # ---------------------------------------------------------------------------
 # Test: similarity subcommand (tfidf - real, no model download)
 # ---------------------------------------------------------------------------
+
 
 class TestSimilarityCmd:
     """Tests for the 'similarity' subcommand handler."""
@@ -136,11 +144,14 @@ class TestSimilarityCmd:
         captured = capsys.readouterr()
         assert "TF-IDF" in captured.out
 
-    def test_similarity_import_error_returns_1(self, monkeypatch: pytest.MonkeyPatch,
-                                               capsys: pytest.CaptureFixture) -> None:
+    def test_similarity_import_error_returns_1(
+        self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture
+    ) -> None:
         """similarity returns 1 when Similarity class import fails."""
+
         def _raise() -> Any:
             raise ImportError("no sklearn")
+
         monkeypatch.setattr(cli, "_import_similarity_class", _raise)
 
         args = _make_namespace(method="tfidf", data=[], query="test")
@@ -161,12 +172,18 @@ class TestSimilarityCmd:
 
     def test_similarity_via_main_tfidf(self, capsys: pytest.CaptureFixture) -> None:
         """main() dispatches similarity --method tfidf correctly."""
-        exit_code = main([
-            "similarity",
-            "--method", "tfidf",
-            "--data", "The cat sat", "A dog ran",
-            "--query", "The cat",
-        ])
+        exit_code = main(
+            [
+                "similarity",
+                "--method",
+                "tfidf",
+                "--data",
+                "The cat sat",
+                "A dog ran",
+                "--query",
+                "The cat",
+            ]
+        )
 
         assert exit_code == 0
         captured = capsys.readouterr()
@@ -183,11 +200,13 @@ class TestSimilarityCmd:
 # Test: rag subcommand
 # ---------------------------------------------------------------------------
 
+
 class TestRagCmd:
     """Tests for the 'rag' subcommand handler."""
 
-    def test_rag_with_mock_functions(self, monkeypatch: pytest.MonkeyPatch,
-                                     capsys: pytest.CaptureFixture) -> None:
+    def test_rag_with_mock_functions(
+        self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture
+    ) -> None:
         """rag calls vector_search and reciprocal_rank_fusion with mocked functions."""
         mock_docs = {
             "doc1": "Climate change and economic impact.",
@@ -212,8 +231,9 @@ class TestRagCmd:
         assert "climate" in captured.out
         assert "doc1" in captured.out
 
-    def test_rag_top_k_limits_output(self, monkeypatch: pytest.MonkeyPatch,
-                                     capsys: pytest.CaptureFixture) -> None:
+    def test_rag_top_k_limits_output(
+        self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture
+    ) -> None:
         """rag --top-k N limits the output to N results."""
         mock_docs = {f"doc{i}": f"Document {i}" for i in range(1, 6)}
         mock_search = MagicMock(return_value={f"doc{i}": 1.0 / i for i in range(1, 6)})
@@ -231,14 +251,21 @@ class TestRagCmd:
         assert exit_code == 0
         captured = capsys.readouterr()
         # Exactly 2 result lines (each starts with "  N.")
-        result_lines = [line for line in captured.out.splitlines() if line.strip().startswith(("1.", "2.", "3.", "4.", "5."))]
+        result_lines = [
+            line
+            for line in captured.out.splitlines()
+            if line.strip().startswith(("1.", "2.", "3.", "4.", "5."))
+        ]
         assert len(result_lines) <= 2
 
-    def test_rag_import_error_returns_1(self, monkeypatch: pytest.MonkeyPatch,
-                                        capsys: pytest.CaptureFixture) -> None:
+    def test_rag_import_error_returns_1(
+        self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture
+    ) -> None:
         """rag returns exit code 1 when import fails."""
+
         def _raise() -> Any:
             raise ImportError("no torch")
+
         monkeypatch.setattr(cli, "_import_rag_functions", _raise)
 
         args = _make_namespace(query="test", top_k=None)
@@ -248,8 +275,9 @@ class TestRagCmd:
         captured = capsys.readouterr()
         assert "Error" in captured.err
 
-    def test_rag_via_main(self, monkeypatch: pytest.MonkeyPatch,
-                          capsys: pytest.CaptureFixture) -> None:
+    def test_rag_via_main(
+        self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture
+    ) -> None:
         """main() dispatches rag subcommand correctly."""
         mock_docs = {"d1": "climate change", "d2": "ancient history"}
         monkeypatch.setattr(
@@ -279,32 +307,64 @@ class TestRagCmd:
 # Test: benchmark subcommand
 # ---------------------------------------------------------------------------
 
+
 class TestBenchmarkCmd:
     """Tests for the 'benchmark' subcommand handler."""
 
     def _make_mock_results(self) -> list[dict]:
         """Return minimal benchmark result dicts."""
         return [
-            {"s1": "a", "s2": "b", "label": "high", "category": "para",
-             "score": 0.9, "model": "test", "elapsed_ms": 10.0},
-            {"s1": "c", "s2": "d", "label": "medium", "category": "related",
-             "score": 0.5, "model": "test", "elapsed_ms": 10.0},
-            {"s1": "e", "s2": "f", "label": "low", "category": "unrelated",
-             "score": 0.1, "model": "test", "elapsed_ms": 10.0},
+            {
+                "s1": "a",
+                "s2": "b",
+                "label": "high",
+                "category": "para",
+                "score": 0.9,
+                "model": "test",
+                "elapsed_ms": 10.0,
+            },
+            {
+                "s1": "c",
+                "s2": "d",
+                "label": "medium",
+                "category": "related",
+                "score": 0.5,
+                "model": "test",
+                "elapsed_ms": 10.0,
+            },
+            {
+                "s1": "e",
+                "s2": "f",
+                "label": "low",
+                "category": "unrelated",
+                "score": 0.1,
+                "model": "test",
+                "elapsed_ms": 10.0,
+            },
         ]
 
-    def test_benchmark_table_format(self, monkeypatch: pytest.MonkeyPatch,
-                                    capsys: pytest.CaptureFixture) -> None:
+    def test_benchmark_table_format(
+        self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture
+    ) -> None:
         """benchmark --format table calls format_benchmark_report and prints table."""
         mock_results = self._make_mock_results()
         mock_run = MagicMock(return_value=mock_results)
-        mock_eval = MagicMock(return_value={
-            "high_avg": 0.9, "medium_avg": 0.5, "low_avg": 0.1,
-            "separation_score": 0.8, "high_low_gap": 0.8,
-            "high_medium_gap": 0.4, "medium_low_gap": 0.4,
-            "rank_accuracy": 1.0, "n_high": 1.0, "n_medium": 1.0, "n_low": 1.0,
-            "avg_elapsed_ms": 10.0,
-        })
+        mock_eval = MagicMock(
+            return_value={
+                "high_avg": 0.9,
+                "medium_avg": 0.5,
+                "low_avg": 0.1,
+                "separation_score": 0.8,
+                "high_low_gap": 0.8,
+                "high_medium_gap": 0.4,
+                "medium_low_gap": 0.4,
+                "rank_accuracy": 1.0,
+                "n_high": 1.0,
+                "n_medium": 1.0,
+                "n_low": 1.0,
+                "avg_elapsed_ms": 10.0,
+            }
+        )
         mock_format = MagicMock(return_value="  Mock benchmark table\n")
 
         monkeypatch.setattr(
@@ -323,18 +383,28 @@ class TestBenchmarkCmd:
         captured = capsys.readouterr()
         assert "Mock benchmark table" in captured.out
 
-    def test_benchmark_json_format(self, monkeypatch: pytest.MonkeyPatch,
-                                   capsys: pytest.CaptureFixture) -> None:
+    def test_benchmark_json_format(
+        self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture
+    ) -> None:
         """benchmark --format json outputs valid JSON with metrics and pairs."""
         mock_results = self._make_mock_results()
         mock_run = MagicMock(return_value=mock_results)
-        mock_eval = MagicMock(return_value={
-            "high_avg": 0.9, "medium_avg": 0.5, "low_avg": 0.1,
-            "separation_score": 0.8, "high_low_gap": 0.8,
-            "high_medium_gap": 0.4, "medium_low_gap": 0.4,
-            "rank_accuracy": 1.0, "n_high": 1.0, "n_medium": 1.0, "n_low": 1.0,
-            "avg_elapsed_ms": 10.0,
-        })
+        mock_eval = MagicMock(
+            return_value={
+                "high_avg": 0.9,
+                "medium_avg": 0.5,
+                "low_avg": 0.1,
+                "separation_score": 0.8,
+                "high_low_gap": 0.8,
+                "high_medium_gap": 0.4,
+                "medium_low_gap": 0.4,
+                "rank_accuracy": 1.0,
+                "n_high": 1.0,
+                "n_medium": 1.0,
+                "n_low": 1.0,
+                "avg_elapsed_ms": 10.0,
+            }
+        )
         mock_format = MagicMock(return_value="table output")
 
         monkeypatch.setattr(
@@ -350,19 +420,21 @@ class TestBenchmarkCmd:
         captured = capsys.readouterr()
         # Filter out non-JSON "Running..." line
         json_lines = "\n".join(
-            line for line in captured.out.splitlines()
-            if not line.startswith("Running")
+            line for line in captured.out.splitlines() if not line.startswith("Running")
         )
         parsed = json.loads(json_lines)
         assert "metrics" in parsed
         assert "pairs" in parsed
         assert parsed["metrics"]["high_avg"] == pytest.approx(0.9)
 
-    def test_benchmark_import_error_returns_1(self, monkeypatch: pytest.MonkeyPatch,
-                                              capsys: pytest.CaptureFixture) -> None:
+    def test_benchmark_import_error_returns_1(
+        self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture
+    ) -> None:
         """benchmark returns exit code 1 when import fails."""
+
         def _raise() -> Any:
             raise ImportError("no sentence-transformers")
+
         monkeypatch.setattr(cli, "_import_benchmark_functions", _raise)
 
         args = _make_namespace(format="table")
@@ -372,18 +444,33 @@ class TestBenchmarkCmd:
         captured = capsys.readouterr()
         assert "Error" in captured.err
 
-    def test_benchmark_via_main_default_format(self, monkeypatch: pytest.MonkeyPatch,
-                                               capsys: pytest.CaptureFixture) -> None:
+    def test_benchmark_via_main_default_format(
+        self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture
+    ) -> None:
         """main() dispatches benchmark with default table format."""
         mock_results: list[dict] = [
-            {"s1": "a", "s2": "b", "label": "high", "score": 0.9,
-             "model": "m", "elapsed_ms": 5.0, "category": "test"},
+            {
+                "s1": "a",
+                "s2": "b",
+                "label": "high",
+                "score": 0.9,
+                "model": "m",
+                "elapsed_ms": 5.0,
+                "category": "test",
+            },
         ]
         mock_eval_result = {
-            "high_avg": 0.9, "medium_avg": float("nan"), "low_avg": float("nan"),
-            "separation_score": float("nan"), "high_low_gap": float("nan"),
-            "high_medium_gap": float("nan"), "medium_low_gap": float("nan"),
-            "rank_accuracy": float("nan"), "n_high": 1.0, "n_medium": 0.0, "n_low": 0.0,
+            "high_avg": 0.9,
+            "medium_avg": float("nan"),
+            "low_avg": float("nan"),
+            "separation_score": float("nan"),
+            "high_low_gap": float("nan"),
+            "high_medium_gap": float("nan"),
+            "medium_low_gap": float("nan"),
+            "rank_accuracy": float("nan"),
+            "n_high": 1.0,
+            "n_medium": 0.0,
+            "n_low": 0.0,
             "avg_elapsed_ms": 5.0,
         }
         monkeypatch.setattr(
@@ -406,6 +493,7 @@ class TestBenchmarkCmd:
 # ---------------------------------------------------------------------------
 # Test: --help and argument validation
 # ---------------------------------------------------------------------------
+
 
 class TestArgparseBehavior:
     """Tests for argparse-level help and argument validation."""
@@ -448,5 +536,6 @@ class TestArgparseBehavior:
     def test_build_parser_returns_parser(self) -> None:
         """build_parser() returns a configured ArgumentParser."""
         import argparse
+
         parser = build_parser()
         assert isinstance(parser, argparse.ArgumentParser)

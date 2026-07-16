@@ -5,17 +5,23 @@ Tests that don't require model downloads use mocking or pure-logic methods.
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, call
+from unittest.mock import MagicMock
 
 import numpy as np
 import pytest
 
-from zehutai.similarity.sim import DEFAULT_DATA, DEFAULT_QUERY, Similarity, _get_or_load_model, _model_cache
-
+from zehutai.similarity.sim import (
+    DEFAULT_DATA,
+    DEFAULT_QUERY,
+    Similarity,
+    _get_or_load_model,
+    _model_cache,
+)
 
 # ---------------------------------------------------------------------------
 # Similarity class instantiation
 # ---------------------------------------------------------------------------
+
 
 class TestSimilarityInit:
     """Tests for Similarity class construction."""
@@ -44,6 +50,7 @@ class TestSimilarityInit:
 # ---------------------------------------------------------------------------
 # Model registration
 # ---------------------------------------------------------------------------
+
 
 class TestModelRegistration:
     """Tests for addModel / removeModel."""
@@ -93,6 +100,7 @@ class TestModelRegistration:
 # add_texts method
 # ---------------------------------------------------------------------------
 
+
 class TestAddTexts:
     """Tests for the add_texts method."""
 
@@ -114,6 +122,7 @@ class TestAddTexts:
 # TF-IDF method (fast, no model download needed)
 # ---------------------------------------------------------------------------
 
+
 class TestMethodScikitlearn:
     """Tests for the TF-IDF based similarity method."""
 
@@ -123,17 +132,13 @@ class TestMethodScikitlearn:
         result = sim.methodScikitlearn(data=sample_data, query=sample_query)
         assert isinstance(result, list)
 
-    def test_result_length_matches_data(
-        self, sample_data: list[str], sample_query: str
-    ) -> None:
+    def test_result_length_matches_data(self, sample_data: list[str], sample_query: str) -> None:
         """Should return one result per document in data."""
         sim = Similarity()
         result = sim.methodScikitlearn(data=sample_data, query=sample_query)
         assert len(result) == len(sample_data)
 
-    def test_result_tuples_format(
-        self, sample_data: list[str], sample_query: str
-    ) -> None:
+    def test_result_tuples_format(self, sample_data: list[str], sample_query: str) -> None:
         """Each result should be (text, similarity_score)."""
         sim = Similarity()
         result = sim.methodScikitlearn(data=sample_data, query=sample_query)
@@ -141,9 +146,7 @@ class TestMethodScikitlearn:
             assert isinstance(text, str)
             assert isinstance(score, float)
 
-    def test_similarity_scores_in_range(
-        self, sample_data: list[str], sample_query: str
-    ) -> None:
+    def test_similarity_scores_in_range(self, sample_data: list[str], sample_query: str) -> None:
         """TF-IDF cosine similarity should be between 0 and 1."""
         sim = Similarity()
         result = sim.methodScikitlearn(data=sample_data, query=sample_query)
@@ -176,6 +179,7 @@ class TestMethodScikitlearn:
 # ---------------------------------------------------------------------------
 # Utility functions
 # ---------------------------------------------------------------------------
+
 
 class TestUtilityFunctions:
     """Tests for static/helper methods on Similarity."""
@@ -227,6 +231,7 @@ class TestUtilityFunctions:
 # Default constants
 # ---------------------------------------------------------------------------
 
+
 class TestDefaults:
     """Tests for module-level default constants."""
 
@@ -247,6 +252,7 @@ class TestDefaults:
 # ---------------------------------------------------------------------------
 # Model caching (_get_or_load_model)
 # ---------------------------------------------------------------------------
+
 
 class TestModelCaching:
     """Tests for the module-level model cache in sim.py."""
@@ -343,6 +349,7 @@ class TestModelCaching:
 # Integration test stubs (require real model downloads)
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.slow
 class TestIntegrationBert:
     """Integration tests that download and run real BERT models.
@@ -358,7 +365,7 @@ class TestIntegrationBert:
             query="Hello there",
         )
         assert len(results) == 2
-        for score, text, query in results:
+        for score, _text, _query in results:
             assert isinstance(score, float)
             assert -1.0 <= score <= 1.0
 
@@ -370,7 +377,7 @@ class TestIntegrationBert:
             query="Hello there",
         )
         assert len(results) == 2
-        for score, text, query in results:
+        for score, _text, _query in results:
             assert isinstance(score, float)
             assert -1.0 <= score <= 1.0
 

@@ -88,7 +88,7 @@ jobs:
           echo "Scanning for potential secrets in tracked files..."
           FOUND=0
           for pattern in 'sk-proj-' 'sk-[a-zA-Z0-9]{20,}' 'api_key\s*=\s*["\x27][a-zA-Z0-9]' 'password\s*=\s*["\x27][^"\x27]{8,}'; do
-            if git grep -lP "$pattern" -- '*.py' '*.yml' '*.yaml' '*.json' '*.cfg' '*.ini' '*.toml' 2>/dev/null; then
+            if git grep -lP "$pattern" -- '*.py' '*.yml' '*.yaml' '*.json' '*.cfg' '*.ini' '*.toml' ':!.github/workflows/**' 2>/dev/null; then
               echo "WARNING: Potential secret pattern '$pattern' found in above files"
               FOUND=1
             fi

@@ -574,7 +574,9 @@ def evaluate_benchmark(results: list[dict]) -> dict[str, float]:
         not (np.isnan(medium_avg) or np.isnan(low_avg)) and medium_avg > low_avg,
     ]
     n_checks = sum(1 for _ in ordering_checks)
-    rank_accuracy = sum(1.0 for ok in ordering_checks if ok) / n_checks if n_checks else float("nan")
+    rank_accuracy = (
+        sum(1.0 for ok in ordering_checks if ok) / n_checks if n_checks else float("nan")
+    )
 
     metrics: dict[str, float] = {
         "high_avg": high_avg,
@@ -742,13 +744,13 @@ def _format_multi_model_report(all_results: dict[str, dict[str, float]]) -> str:
 
     def _header_row() -> str:
         parts = [f"{'Model':<{model_col_width}}"]
-        for h, w in zip(col_headers, metric_col_widths):
+        for h, w in zip(col_headers, metric_col_widths, strict=False):
             parts.append(f"{h:^{w}}")
         return "| " + " | ".join(parts) + " |"
 
     def _data_row(model_name: str, metrics: dict[str, float]) -> str:
         parts = [f"{model_name:<{model_col_width}}"]
-        for k, w in zip(metric_keys, metric_col_widths):
+        for k, w in zip(metric_keys, metric_col_widths, strict=False):
             val = metrics.get(k, float("nan"))
             formatted = _fmt(val).strip()
             parts.append(f"{formatted:^{w}}")
@@ -781,7 +783,9 @@ def _format_multi_model_report(all_results: dict[str, dict[str, float]]) -> str:
         rank_acc = metrics.get("rank_accuracy", float("nan"))
         sep_str = f"{sep_score:.4f}" if not np.isnan(sep_score) else "N/A"
         acc_str = f"{rank_acc:.2%}" if not np.isnan(rank_acc) else "N/A"
-        lines.append(f"    {rank}. {model_name:<{model_col_width}}  sep={sep_str}  rank_acc={acc_str}")
+        lines.append(
+            f"    {rank}. {model_name:<{model_col_width}}  sep={sep_str}  rank_acc={acc_str}"
+        )
 
     lines.append("")
     return "\n".join(lines)

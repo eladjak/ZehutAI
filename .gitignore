@@ -79,3 +79,4 @@ secrets/
 
 # webapp runtime artifacts
 webapp/benchmark_cache.json
+.hf-cache/

@@ -12,14 +12,11 @@ For real model evaluation, run with: python -m pytest -m slow
 
 from __future__ import annotations
 
-from typing import Any
 from unittest.mock import MagicMock
 
-import numpy as np
 import pytest
 
 import zehutai.embeddings_comparison as ec
-
 
 # ---------------------------------------------------------------------------
 # Hebrew sentence pairs with expected similarity relationships.
@@ -99,23 +96,17 @@ HEBREW_BENCHMARK_PAIRS: list[tuple[str, str, str]] = [
 class TestHebrewPipelineBasics:
     """Verify the pipeline handles Hebrew text correctly."""
 
-    def test_hebrew_sentences_return_float(
-        self, mock_sentence_transformer: MagicMock
-    ) -> None:
+    def test_hebrew_sentences_return_float(self, mock_sentence_transformer: MagicMock) -> None:
         """compare_sentences should return a float for Hebrew input."""
         pair = [HEBREW_BENCHMARK_PAIRS[0][0], HEBREW_BENCHMARK_PAIRS[0][1]]
         result = ec.compare_sentences(pair)
         assert isinstance(result, float)
 
-    def test_hebrew_similarity_in_valid_range(
-        self, mock_sentence_transformer: MagicMock
-    ) -> None:
+    def test_hebrew_similarity_in_valid_range(self, mock_sentence_transformer: MagicMock) -> None:
         """All Hebrew sentence pair scores must be in [-1, 1]."""
         for sent_a, sent_b, _label in HEBREW_BENCHMARK_PAIRS:
             score = ec.compare_sentences([sent_a, sent_b])
-            assert -1.0 <= score <= 1.0, (
-                f"Score {score} out of range for: '{sent_a}' vs '{sent_b}'"
-            )
+            assert -1.0 <= score <= 1.0, f"Score {score} out of range for: '{sent_a}' vs '{sent_b}'"
 
     def test_identical_hebrew_sentences_produce_valid_score(
         self, mock_sentence_transformer: MagicMock
@@ -183,9 +174,7 @@ class TestHebrewBenchmarkScores:
             f"unique values out of {len(scores)}"
         )
 
-    def test_all_ten_pairs_run_successfully(
-        self, mock_sentence_transformer: MagicMock
-    ) -> None:
+    def test_all_ten_pairs_run_successfully(self, mock_sentence_transformer: MagicMock) -> None:
         """Verify all 10 benchmark pairs complete without errors."""
         assert len(HEBREW_BENCHMARK_PAIRS) == 10
         results: list[tuple[str, str, str, float]] = []
@@ -220,7 +209,7 @@ class TestHebrewTfidfSimilarity:
         query = "החתול על השטיח"
 
         vectorizer = TfidfVectorizer()
-        all_texts = hebrew_docs + [query]
+        all_texts = [*hebrew_docs, query]
         tfidf_matrix = vectorizer.fit_transform(all_texts)
 
         # Similarity of query with each document

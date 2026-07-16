@@ -36,9 +36,7 @@ def _get_or_load_model(
         Tuple of (tokenizer_instance, model_instance).
     """
     if model_weights not in _model_cache:
-        tokenizer = tokenizer_cls.from_pretrained(
-            model_weights, clean_up_tokenization_spaces=True
-        )
+        tokenizer = tokenizer_cls.from_pretrained(model_weights, clean_up_tokenization_spaces=True)
         model = model_cls.from_pretrained(model_weights)
         _model_cache[model_weights] = (tokenizer, model)
     return _model_cache[model_weights]
@@ -67,9 +65,7 @@ class Similarity:
         self.methods: list[Any] = []
         self.results: dict[str, list[tuple[float, str, str]]] = {}
 
-    def addModel(
-        self, tokenizer: Any, model: Any, model_weights: str
-    ) -> None:
+    def addModel(self, tokenizer: Any, model: Any, model_weights: str) -> None:
         """Register a neural network model for batch comparison.
 
         Args:
@@ -125,22 +121,15 @@ class Similarity:
 
         tokenized_data = [word_tokenize(document.lower()) for document in data]
         tagged_data = [
-            TaggedDocument(words=words, tags=[str(idx)])
-            for idx, words in enumerate(tokenized_data)
+            TaggedDocument(words=words, tags=[str(idx)]) for idx, words in enumerate(tokenized_data)
         ]
 
-        model = Doc2Vec(
-            vector_size=100, window=2, min_count=1, workers=4, epochs=1000
-        )
+        model = Doc2Vec(vector_size=100, window=2, min_count=1, workers=4, epochs=1000)
         model.build_vocab(tagged_data)
-        model.train(
-            tagged_data, total_examples=model.corpus_count, epochs=model.epochs
-        )
+        model.train(tagged_data, total_examples=model.corpus_count, epochs=model.epochs)
 
         inferred_vector = model.infer_vector(word_tokenize(query.lower()))
-        similar_documents = model.dv.most_similar(
-            [inferred_vector], topn=len(model.dv)
-        )
+        similar_documents = model.dv.most_similar([inferred_vector], topn=len(model.dv))
 
         return similar_documents
 
@@ -210,14 +199,22 @@ class Similarity:
                 return_attention_mask=True,
             )
 
-            embedding1 = model(
-                tokenized_target["input_ids"],
-                attention_mask=tokenized_target["attention_mask"],
-            )[0].detach().numpy()[0, :, 0]
-            embedding2 = model(
-                tokenized_query["input_ids"],
-                attention_mask=tokenized_query["attention_mask"],
-            )[0].detach().numpy()[0, :, 0]
+            embedding1 = (
+                model(
+                    tokenized_target["input_ids"],
+                    attention_mask=tokenized_target["attention_mask"],
+                )[0]
+                .detach()
+                .numpy()[0, :, 0]
+            )
+            embedding2 = (
+                model(
+                    tokenized_query["input_ids"],
+                    attention_mask=tokenized_query["attention_mask"],
+                )[0]
+                .detach()
+                .numpy()[0, :, 0]
+            )
 
             similarity = float(
                 np.dot(embedding1, embedding2)
@@ -295,9 +292,7 @@ class Similarity:
         """
         return round(float(np.sqrt(sum(a * a for a in x))), 3)
 
-    def cos_similarity(
-        self, x: list[float] | np.ndarray, y: list[float] | np.ndarray
-    ) -> float:
+    def cos_similarity(self, x: list[float] | np.ndarray, y: list[float] | np.ndarray) -> float:
         """Return cosine similarity between two vectors.
 
         Args:
@@ -307,7 +302,7 @@ class Similarity:
         Returns:
             Cosine similarity score.
         """
-        numerator = sum(a * b for a, b in zip(x, y))
+        numerator = sum(a * b for a, b in zip(x, y, strict=False))
         denominator = self.squared_sum(x) * self.squared_sum(y)
         return round(numerator / float(denominator), 3)
 
@@ -348,14 +343,22 @@ class Similarity:
                 return_attention_mask=True,
             )
 
-            embedding1 = model(
-                tokenized_text["input_ids"],
-                attention_mask=tokenized_text["attention_mask"],
-            )[0].detach().numpy()[0, :, 0]
-            embedding2 = model(
-                tokenized_query["input_ids"],
-                attention_mask=tokenized_query["attention_mask"],
-            )[0].detach().numpy()[0, :, 0]
+            embedding1 = (
+                model(
+                    tokenized_text["input_ids"],
+                    attention_mask=tokenized_text["attention_mask"],
+                )[0]
+                .detach()
+                .numpy()[0, :, 0]
+            )
+            embedding2 = (
+                model(
+                    tokenized_query["input_ids"],
+                    attention_mask=tokenized_query["attention_mask"],
+                )[0]
+                .detach()
+                .numpy()[0, :, 0]
+            )
 
             similarity = float(
                 np.dot(embedding1, embedding2)
@@ -401,14 +404,22 @@ class Similarity:
                 return_attention_mask=True,
             )
 
-            embedding1 = model(
-                tokenized_text["input_ids"],
-                attention_mask=tokenized_text["attention_mask"],
-            )[0].detach().numpy()[0, :, 0]
-            embedding2 = model(
-                tokenized_query["input_ids"],
-                attention_mask=tokenized_query["attention_mask"],
-            )[0].detach().numpy()[0, :, 0]
+            embedding1 = (
+                model(
+                    tokenized_text["input_ids"],
+                    attention_mask=tokenized_text["attention_mask"],
+                )[0]
+                .detach()
+                .numpy()[0, :, 0]
+            )
+            embedding2 = (
+                model(
+                    tokenized_query["input_ids"],
+                    attention_mask=tokenized_query["attention_mask"],
+                )[0]
+                .detach()
+                .numpy()[0, :, 0]
+            )
 
             similarity = float(
                 np.dot(embedding1, embedding2)

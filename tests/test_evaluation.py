@@ -21,10 +21,10 @@ from zehutai.evaluation.evaluation import (
     recall_at_k,
 )
 
-
 # ---------------------------------------------------------------------------
 # precision_at_k
 # ---------------------------------------------------------------------------
+
 
 class TestPrecisionAtK:
     def test_perfect_retrieval(self) -> None:
@@ -69,6 +69,7 @@ class TestPrecisionAtK:
 # recall_at_k
 # ---------------------------------------------------------------------------
 
+
 class TestRecallAtK:
     def test_full_recall(self) -> None:
         retrieved = ["a", "b", "c"]
@@ -101,6 +102,7 @@ class TestRecallAtK:
 # ---------------------------------------------------------------------------
 # average_precision
 # ---------------------------------------------------------------------------
+
 
 class TestAveragePrecision:
     def test_perfect_ranking(self) -> None:
@@ -152,6 +154,7 @@ class TestAveragePrecision:
 # mean_reciprocal_rank
 # ---------------------------------------------------------------------------
 
+
 class TestMeanReciprocalRank:
     def test_first_result_relevant(self) -> None:
         queries = [
@@ -173,9 +176,9 @@ class TestMeanReciprocalRank:
 
     def test_multiple_queries_mixed(self) -> None:
         queries = [
-            (["a", "b", "c"], {"a"}),   # RR = 1.0
-            (["a", "b", "c"], {"b"}),   # RR = 0.5
-            (["a", "b", "c"], {"z"}),   # RR = 0.0
+            (["a", "b", "c"], {"a"}),  # RR = 1.0
+            (["a", "b", "c"], {"b"}),  # RR = 0.5
+            (["a", "b", "c"], {"z"}),  # RR = 0.0
         ]
         expected = (1.0 + 0.5 + 0.0) / 3
         assert mean_reciprocal_rank(queries) == pytest.approx(expected)
@@ -192,8 +195,8 @@ class TestMeanReciprocalRank:
 
     def test_two_queries_average(self) -> None:
         queries = [
-            (["b", "a", "c"], {"a"}),   # RR = 1/2
-            (["a", "b", "c"], {"a"}),   # RR = 1/1
+            (["b", "a", "c"], {"a"}),  # RR = 1/2
+            (["a", "b", "c"], {"a"}),  # RR = 1/1
         ]
         assert mean_reciprocal_rank(queries) == pytest.approx(0.75)
 
@@ -201,6 +204,7 @@ class TestMeanReciprocalRank:
 # ---------------------------------------------------------------------------
 # ndcg_at_k
 # ---------------------------------------------------------------------------
+
 
 class TestNdcgAtK:
     def test_perfect_order(self) -> None:
@@ -260,6 +264,7 @@ class TestNdcgAtK:
 # evaluate_retrieval (convenience wrapper)
 # ---------------------------------------------------------------------------
 
+
 class TestEvaluateRetrieval:
     def test_default_k_values_keys_present(self) -> None:
         retrieved = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"]
@@ -312,6 +317,7 @@ class TestEvaluateRetrieval:
 # ---------------------------------------------------------------------------
 # f1_score
 # ---------------------------------------------------------------------------
+
 
 class TestF1Score:
     def test_perfect_precision_and_recall(self) -> None:

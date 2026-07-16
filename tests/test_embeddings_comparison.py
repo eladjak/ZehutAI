@@ -6,18 +6,16 @@ without downloading model weights.
 
 from __future__ import annotations
 
-from typing import Any
 from unittest.mock import MagicMock
 
-import numpy as np
 import pytest
 
 import zehutai.embeddings_comparison as ec
 
-
 # ---------------------------------------------------------------------------
 # Unit tests (mocked model)
 # ---------------------------------------------------------------------------
+
 
 class TestCompareSentences:
     """Tests for compare_sentences() with mocked model."""
@@ -45,23 +43,17 @@ class TestCompareSentences:
         # With seeded random embeddings, different inputs produce different scores
         assert result_a != result_b
 
-    def test_rejects_single_sentence(
-        self, mock_sentence_transformer: MagicMock
-    ) -> None:
+    def test_rejects_single_sentence(self, mock_sentence_transformer: MagicMock) -> None:
         """Should raise ValueError when given only 1 sentence."""
         with pytest.raises(ValueError, match="Expected exactly 2 sentences"):
             ec.compare_sentences(["only one"])
 
-    def test_rejects_three_sentences(
-        self, mock_sentence_transformer: MagicMock
-    ) -> None:
+    def test_rejects_three_sentences(self, mock_sentence_transformer: MagicMock) -> None:
         """Should raise ValueError when given 3 sentences."""
         with pytest.raises(ValueError, match="Expected exactly 2 sentences"):
             ec.compare_sentences(["a", "b", "c"])
 
-    def test_rejects_empty_list(
-        self, mock_sentence_transformer: MagicMock
-    ) -> None:
+    def test_rejects_empty_list(self, mock_sentence_transformer: MagicMock) -> None:
         """Should raise ValueError for empty list."""
         with pytest.raises(ValueError, match="Expected exactly 2 sentences"):
             ec.compare_sentences([])

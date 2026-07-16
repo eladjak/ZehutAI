@@ -161,11 +161,7 @@ def ndcg_at_k(retrieved: list[str], relevant: set[str], k: int) -> float:
         return 0.0
     top_k = retrieved[:k]
     # DCG: discount by log2(i + 2) where i is 0-indexed rank
-    dcg = sum(
-        1.0 / math.log2(i + 2)
-        for i, doc in enumerate(top_k)
-        if doc in relevant
-    )
+    dcg = sum(1.0 / math.log2(i + 2) for i, doc in enumerate(top_k) if doc in relevant)
     # IDCG: ideal ordering puts all relevant docs at the top ranks
     ideal_hits = min(len(relevant), k)
     idcg = sum(1.0 / math.log2(i + 2) for i in range(ideal_hits))

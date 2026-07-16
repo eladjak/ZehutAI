@@ -11,6 +11,7 @@ from typing import Any
 
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
+
 from zehutai.embeddings_comparison import compare_sentences
 
 # Detect device once at module level
@@ -251,8 +252,7 @@ def vector_search(
     cleaned_query = preprocess_text(query)
     available_docs = list(all_documents.keys())
     scores = {
-        doc: compare_sentences([preprocess_text(doc), cleaned_query])
-        for doc in available_docs
+        doc: compare_sentences([preprocess_text(doc), cleaned_query]) for doc in available_docs
     }
     sorted_scores = dict(sorted(scores.items(), key=lambda x: x[1], reverse=True))
     if top_k is not None:
@@ -292,23 +292,19 @@ def reciprocal_rank_fusion(
     """
     fused_scores: dict[str, float] = {}
 
-    for query, doc_scores in search_results_dict.items():
-        for rank, (doc, score) in enumerate(
+    for _query, doc_scores in search_results_dict.items():
+        for rank, (doc, _score) in enumerate(
             sorted(doc_scores.items(), key=lambda x: x[1], reverse=True)
         ):
             if doc not in fused_scores:
                 fused_scores[doc] = 0
             fused_scores[doc] += 1 / (rank + k)
 
-    reranked_results = dict(
-        sorted(fused_scores.items(), key=lambda x: x[1], reverse=True)
-    )
+    reranked_results = dict(sorted(fused_scores.items(), key=lambda x: x[1], reverse=True))
     return reranked_results
 
 
-def generate_output(
-    reranked_results: dict[str, float], queries: list[str]
-) -> str:
+def generate_output(reranked_results: dict[str, float], queries: list[str]) -> str:
     """Generate final output based on reranked results and queries.
 
     Args:
@@ -319,8 +315,7 @@ def generate_output(
         Summary string of results.
     """
     return (
-        f"Final output based on {queries} "
-        f"and reranked documents: {list(reranked_results.keys())}"
+        f"Final output based on {queries} and reranked documents: {list(reranked_results.keys())}"
     )
 
 
@@ -389,10 +384,7 @@ def rag_pipeline(
         retrieval_corpus = dict(documents)
 
     # Stage 2: optional query expansion
-    if use_query_expansion:
-        queries = generate_queries(query)
-    else:
-        queries = [query]
+    queries = generate_queries(query) if use_query_expansion else [query]
 
     # Stage 3: vector search per query
     all_results: dict[str, dict[str, float]] = {}
