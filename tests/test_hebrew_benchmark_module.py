@@ -16,14 +16,11 @@ from __future__ import annotations
 from collections import Counter
 from typing import Any
 
-import pytest
-
 from zehutai.hebrew.hebrew_benchmark import (
     HEBREW_SENTENCE_PAIRS,
     format_benchmark_report,
     run_benchmark,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -90,30 +87,24 @@ class TestHebrewSentencePairsCorpus:
 
     def test_corpus_has_exactly_20_pairs(self) -> None:
         """HEBREW_SENTENCE_PAIRS must contain exactly 20 sentence pairs."""
-        assert len(HEBREW_SENTENCE_PAIRS) == 20, (
-            f"Expected 20 pairs, got {len(HEBREW_SENTENCE_PAIRS)}"
-        )
+        assert (
+            len(HEBREW_SENTENCE_PAIRS) == 20
+        ), f"Expected 20 pairs, got {len(HEBREW_SENTENCE_PAIRS)}"
 
     def test_high_category_count_is_7(self) -> None:
         """There must be exactly 7 pairs with category='high'."""
         counts = Counter(p["category"] for p in HEBREW_SENTENCE_PAIRS)
-        assert counts["high"] == 7, (
-            f"Expected 7 high pairs, got {counts['high']}"
-        )
+        assert counts["high"] == 7, f"Expected 7 high pairs, got {counts['high']}"
 
     def test_medium_category_count_is_7(self) -> None:
         """There must be exactly 7 pairs with category='medium'."""
         counts = Counter(p["category"] for p in HEBREW_SENTENCE_PAIRS)
-        assert counts["medium"] == 7, (
-            f"Expected 7 medium pairs, got {counts['medium']}"
-        )
+        assert counts["medium"] == 7, f"Expected 7 medium pairs, got {counts['medium']}"
 
     def test_low_category_count_is_6(self) -> None:
         """There must be exactly 6 pairs with category='low'."""
         counts = Counter(p["category"] for p in HEBREW_SENTENCE_PAIRS)
-        assert counts["low"] == 6, (
-            f"Expected 6 low pairs, got {counts['low']}"
-        )
+        assert counts["low"] == 6, f"Expected 6 low pairs, got {counts['low']}"
 
     def test_all_pairs_have_required_keys(self) -> None:
         """Every pair must have id, sent1, sent2, category, and description."""
@@ -126,16 +117,16 @@ class TestHebrewSentencePairsCorpus:
         for i, pair in enumerate(HEBREW_SENTENCE_PAIRS):
             for key in _REQUIRED_PAIR_KEYS:
                 val = pair.get(key, "")
-                assert isinstance(val, str) and val, (
-                    f"Pair {i}: field '{key}' is not a non-empty string (got {val!r})"
-                )
+                assert (
+                    isinstance(val, str) and val
+                ), f"Pair {i}: field '{key}' is not a non-empty string (got {val!r})"
 
     def test_all_categories_are_valid(self) -> None:
         """All category values must be 'high', 'medium', or 'low'."""
         for i, pair in enumerate(HEBREW_SENTENCE_PAIRS):
-            assert pair["category"] in _VALID_CATEGORIES, (
-                f"Pair {i}: unexpected category '{pair['category']}'"
-            )
+            assert (
+                pair["category"] in _VALID_CATEGORIES
+            ), f"Pair {i}: unexpected category '{pair['category']}'"
 
     def test_all_ids_are_unique(self) -> None:
         """Each pair id must be unique within the corpus."""
@@ -145,43 +136,42 @@ class TestHebrewSentencePairsCorpus:
     def test_sent1_and_sent2_are_different_in_each_pair(self) -> None:
         """sent1 and sent2 should not be identical within a pair."""
         for i, pair in enumerate(HEBREW_SENTENCE_PAIRS):
-            assert pair["sent1"] != pair["sent2"], (
-                f"Pair {i} ({pair['id']}): sent1 == sent2"
-            )
+            assert pair["sent1"] != pair["sent2"], f"Pair {i} ({pair['id']}): sent1 == sent2"
 
     def test_pairs_contain_hebrew_characters(self) -> None:
         """Every pair must contain at least one Hebrew Unicode character."""
+
         def _has_hebrew(text: str) -> bool:
             return any("\u0590" <= ch <= "\u05ff" for ch in text)
 
         for i, pair in enumerate(HEBREW_SENTENCE_PAIRS):
-            assert _has_hebrew(pair["sent1"]) or _has_hebrew(pair["sent2"]), (
-                f"Pair {i} ({pair['id']}): no Hebrew characters found"
-            )
+            assert _has_hebrew(pair["sent1"]) or _has_hebrew(
+                pair["sent2"]
+            ), f"Pair {i} ({pair['id']}): no Hebrew characters found"
 
     def test_high_ids_start_with_high_prefix(self) -> None:
         """Pairs with category='high' should have ids starting with 'high_'."""
         high_pairs = [p for p in HEBREW_SENTENCE_PAIRS if p["category"] == "high"]
         for pair in high_pairs:
-            assert pair["id"].startswith("high_"), (
-                f"High pair id '{pair['id']}' does not start with 'high_'"
-            )
+            assert pair["id"].startswith(
+                "high_"
+            ), f"High pair id '{pair['id']}' does not start with 'high_'"
 
     def test_medium_ids_start_with_medium_prefix(self) -> None:
         """Pairs with category='medium' should have ids starting with 'medium_'."""
         medium_pairs = [p for p in HEBREW_SENTENCE_PAIRS if p["category"] == "medium"]
         for pair in medium_pairs:
-            assert pair["id"].startswith("medium_"), (
-                f"Medium pair id '{pair['id']}' does not start with 'medium_'"
-            )
+            assert pair["id"].startswith(
+                "medium_"
+            ), f"Medium pair id '{pair['id']}' does not start with 'medium_'"
 
     def test_low_ids_start_with_low_prefix(self) -> None:
         """Pairs with category='low' should have ids starting with 'low_'."""
         low_pairs = [p for p in HEBREW_SENTENCE_PAIRS if p["category"] == "low"]
         for pair in low_pairs:
-            assert pair["id"].startswith("low_"), (
-                f"Low pair id '{pair['id']}' does not start with 'low_'"
-            )
+            assert pair["id"].startswith(
+                "low_"
+            ), f"Low pair id '{pair['id']}' does not start with 'low_'"
 
 
 # ---------------------------------------------------------------------------
@@ -256,7 +246,8 @@ class TestRunBenchmark:
 
     def test_returns_dict(self) -> None:
         """run_benchmark must return a dict."""
-        import embeddings_comparison as ec
+        from zehutai import embeddings_comparison as ec
+
         orig = ec.compare_sentences
         ec.compare_sentences = _mock_compare_sentences  # type: ignore[assignment]
         try:
@@ -267,7 +258,8 @@ class TestRunBenchmark:
 
     def test_returns_correct_top_level_keys(self) -> None:
         """run_benchmark result must contain 'model', 'pairs', and 'stats'."""
-        import embeddings_comparison as ec
+        from zehutai import embeddings_comparison as ec
+
         orig = ec.compare_sentences
         ec.compare_sentences = _mock_compare_sentences  # type: ignore[assignment]
         try:
@@ -280,7 +272,8 @@ class TestRunBenchmark:
 
     def test_model_key_is_string(self) -> None:
         """results['model'] must be a string."""
-        import embeddings_comparison as ec
+        from zehutai import embeddings_comparison as ec
+
         orig = ec.compare_sentences
         ec.compare_sentences = _mock_compare_sentences  # type: ignore[assignment]
         try:
@@ -291,7 +284,8 @@ class TestRunBenchmark:
 
     def test_default_model_name(self) -> None:
         """When model_name is None, model should be the default mpnet name."""
-        import embeddings_comparison as ec
+        from zehutai import embeddings_comparison as ec
+
         orig = ec.compare_sentences
         ec.compare_sentences = _mock_compare_sentences  # type: ignore[assignment]
         try:
@@ -302,7 +296,8 @@ class TestRunBenchmark:
 
     def test_custom_model_name_preserved(self) -> None:
         """Custom model_name should appear in the results dict."""
-        import embeddings_comparison as ec
+        from zehutai import embeddings_comparison as ec
+
         orig = ec.compare_sentences
         ec.compare_sentences = _mock_compare_sentences  # type: ignore[assignment]
         try:
@@ -313,7 +308,8 @@ class TestRunBenchmark:
 
     def test_pairs_list_has_20_entries(self) -> None:
         """results['pairs'] must contain 20 scored entries."""
-        import embeddings_comparison as ec
+        from zehutai import embeddings_comparison as ec
+
         orig = ec.compare_sentences
         ec.compare_sentences = _mock_compare_sentences  # type: ignore[assignment]
         try:
@@ -324,7 +320,8 @@ class TestRunBenchmark:
 
     def test_each_pair_has_score_key(self) -> None:
         """Every entry in results['pairs'] must contain a 'score' key."""
-        import embeddings_comparison as ec
+        from zehutai import embeddings_comparison as ec
+
         orig = ec.compare_sentences
         ec.compare_sentences = _mock_compare_sentences  # type: ignore[assignment]
         try:
@@ -336,7 +333,8 @@ class TestRunBenchmark:
 
     def test_each_pair_score_is_float(self) -> None:
         """Every score in results['pairs'] must be a float."""
-        import embeddings_comparison as ec
+        from zehutai import embeddings_comparison as ec
+
         orig = ec.compare_sentences
         ec.compare_sentences = _mock_compare_sentences  # type: ignore[assignment]
         try:
@@ -344,13 +342,12 @@ class TestRunBenchmark:
         finally:
             ec.compare_sentences = orig
         for pair in results["pairs"]:
-            assert isinstance(pair["score"], float), (
-                f"score is not float: {type(pair['score'])}"
-            )
+            assert isinstance(pair["score"], float), f"score is not float: {type(pair['score'])}"
 
     def test_stats_has_required_keys(self) -> None:
         """results['stats'] must include high_avg, medium_avg, low_avg, separation_score."""
-        import embeddings_comparison as ec
+        from zehutai import embeddings_comparison as ec
+
         orig = ec.compare_sentences
         ec.compare_sentences = _mock_compare_sentences  # type: ignore[assignment]
         try:
@@ -364,7 +361,8 @@ class TestRunBenchmark:
 
     def test_separation_score_equals_high_minus_low(self) -> None:
         """separation_score must equal high_avg - low_avg."""
-        import embeddings_comparison as ec
+        from zehutai import embeddings_comparison as ec
+
         orig = ec.compare_sentences
         ec.compare_sentences = _mock_compare_sentences  # type: ignore[assignment]
         try:
@@ -380,7 +378,8 @@ class TestRunBenchmark:
 
     def test_pair_entries_preserve_original_fields(self) -> None:
         """Each pair in results['pairs'] must carry id, sent1, sent2, category, description."""
-        import embeddings_comparison as ec
+        from zehutai import embeddings_comparison as ec
+
         orig = ec.compare_sentences
         ec.compare_sentences = _mock_compare_sentences  # type: ignore[assignment]
         try:
@@ -394,7 +393,8 @@ class TestRunBenchmark:
 
     def test_run_benchmark_then_format_produces_report(self) -> None:
         """Pipeline: run_benchmark -> format_benchmark_report produces a non-empty string."""
-        import embeddings_comparison as ec
+        from zehutai import embeddings_comparison as ec
+
         orig = ec.compare_sentences
         ec.compare_sentences = _mock_compare_sentences  # type: ignore[assignment]
         try:
