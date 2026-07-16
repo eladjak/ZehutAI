@@ -1,0 +1,20 @@
+[Unit]
+Description=ZehutAI Web UI (FastAPI wrapper over the research engine, 127.0.0.1:3980)
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/zehutai
+EnvironmentFile=/etc/zehutai-web.env
+Environment=PYTHONUNBUFFERED=1
+Environment=HF_HOME=/opt/zehutai/.hf-cache
+ExecStart=/opt/zehutai/.venv/bin/uvicorn webapp.server:app --host 127.0.0.1 --port 3980 --workers 1
+Restart=on-failure
+RestartSec=5
+# CPU-only host shared with other agents -- keep torch from eating all cores
+Environment=OMP_NUM_THREADS=8
+Environment=MKL_NUM_THREADS=8
+
+[Install]
+WantedBy=multi-user.target

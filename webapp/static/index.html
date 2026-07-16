@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>ZehutAI — מעבדת דמיון סמנטי בעברית</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css?family=Heebo:300,400,500,700,900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/zehutai/static/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧠</text></svg>">
+</head>
+<body>
+
+<div class="bg-glow" aria-hidden="true"></div>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="brand-mark" aria-hidden="true">ז</div>
+    <div class="brand-text">
+      <h1>ZehutAI</h1>
+      <span>מעבדת דמיון סמנטי בעברית</span>
+    </div>
+  </div>
+  <div class="model-chips" id="modelChips" title="מצב המודלים בשרת">
+    <span class="chip" data-model="mpnet"><i class="dot"></i> MPNet</span>
+    <span class="chip" data-model="bert"><i class="dot"></i> BERT</span>
+    <span class="chip" data-model="roberta"><i class="dot"></i> RoBERTa</span>
+  </div>
+</header>
+
+<nav class="tabs" role="tablist" aria-label="מסכי המערכת">
+  <button class="tab active" role="tab" aria-selected="true" data-screen="compare">השוואת משפטים</button>
+  <button class="tab" role="tab" aria-selected="false" data-screen="rank">דירוג דמיון</button>
+  <button class="tab" role="tab" aria-selected="false" data-screen="rag">חיפוש RAG</button>
+  <button class="tab" role="tab" aria-selected="false" data-screen="benchmark">בנצ'מרק עברי</button>
+</nav>
+
+<main>
+
+<!-- ============ COMPARE (hero) ============ -->
+<section class="screen active" id="screen-compare">
+  <p class="screen-sub">כמה שני משפטים דומים במשמעות? המנוע ממיר כל משפט לווקטור סמנטי ומודד את הקרבה ביניהם.</p>
+
+  <div class="compare-grid">
+    <div class="field">
+      <label for="cmpA">משפט ראשון</label>
+      <textarea id="cmpA" rows="4" maxlength="5000" placeholder="לדוגמה: הממשלה אישרה את התקציב">הממשלה אישרה את התקציב</textarea>
+    </div>
+    <button class="swap-btn" id="swapBtn" title="החלפה בין המשפטים" aria-label="החלפה בין המשפטים">⇄</button>
+    <div class="field">
+      <label for="cmpB">משפט שני</label>
+      <textarea id="cmpB" rows="4" maxlength="5000" placeholder="לדוגמה: תקציב המדינה אושר על ידי הממשלה">תקציב המדינה אושר על ידי הממשלה</textarea>
+    </div>
+  </div>
+
+  <div class="model-picks" role="group" aria-label="בחירת מודלים">
+    <label class="pick locked" title="המודל הראשי — תמיד פעיל">
+      <input type="checkbox" checked disabled data-cm="mpnet"> MPNet רב־לשוני <em>ראשי</em>
+    </label>
+    <label class="pick"><input type="checkbox" checked data-cm="tfidf"> TF-IDF <em>מילולי</em></label>
+    <label class="pick"><input type="checkbox" data-cm="bert"> BERT <em>אנגלית · מחקרי</em></label>
+    <label class="pick"><input type="checkbox" data-cm="roberta"> RoBERTa <em>אנגלית · מחקרי</em></label>
+  </div>
+
+  <button class="run-btn" id="compareBtn">חשב דמיון</button>
+
+  <div class="loading" id="compareLoading" hidden>
+    <div class="pulse"><i></i><i></i><i></i></div>
+    <span id="compareLoadingText">מחשב על המעבד… זה לוקח כמה שניות</span>
+  </div>
+
+  <div class="compare-results" id="compareResults" hidden>
+    <div class="gauge-card">
+      <svg class="gauge" viewBox="0 0 220 130" aria-hidden="true">
+        <path class="gauge-track" d="M20 120 A 90 90 0 0 1 200 120"/>
+        <path class="gauge-fill" id="gaugeFill" d="M20 120 A 90 90 0 0 1 200 120"/>
+      </svg>
+      <div class="gauge-value"><span id="gaugeNum">0</span><small>%</small></div>
+      <div class="gauge-verdict" id="gaugeVerdict">—</div>
+      <div class="gauge-model">MPNet רב־לשוני</div>
+    </div>
+    <div class="model-bars" id="modelBars"></div>
+  </div>
+</section>
+
+<!-- ============ RANK ============ -->
+<section class="screen" id="screen-rank">
+  <p class="screen-sub">שאילתה מול אוסף טקסטים — המערכת מדרגת אילו טקסטים הכי קרובים במשמעות לשאילתה.</p>
+
+  <div class="field">
+    <label for="rankQuery">שאילתה</label>
+    <input id="rankQuery" type="text" maxlength="5000" placeholder="לדוגמה: מזג האוויר החורפי בישראל" value="מזג האוויר החורפי בישראל">
+  </div>
+  <div class="field">
+    <label for="rankTexts">טקסטים להשוואה <small>(שורה לכל טקסט, עד 50)</small></label>
+    <textarea id="rankTexts" rows="7" placeholder="טקסט ראשון&#10;טקסט שני&#10;...">גשמים עזים ירדו היום בצפון הארץ
+הממשלה אישרה את תקציב הביטחון
+שלג ירד בחרמון והטמפרטורות צנחו
+מניית הטכנולוגיה זינקה בעשרה אחוזים
+סופת ברקים חזקה צפויה בסוף השבוע</textarea>
+  </div>
+
+  <div class="row-controls">
+    <div class="field slim">
+      <label for="rankMethod">שיטת דמיון</label>
+      <select id="rankMethod">
+        <option value="mpnet" selected>MPNet רב־לשוני (מומלץ)</option>
+        <option value="tfidf">TF-IDF — חפיפת מילים</option>
+        <option value="nltk">Doc2Vec — אימון על האוסף</option>
+        <option value="bert">BERT (אנגלית · מחקרי)</option>
+        <option value="roberta">RoBERTa (אנגלית · מחקרי)</option>
+      </select>
+    </div>
+    <button class="run-btn" id="rankBtn">דרג טקסטים</button>
+  </div>
+
+  <div class="loading" id="rankLoading" hidden>
+    <div class="pulse"><i></i><i></i><i></i></div>
+    <span id="rankLoadingText">מדרג…</span>
+  </div>
+
+  <ol class="rank-list" id="rankList" hidden></ol>
+</section>
+
+<!-- ============ RAG ============ -->
+<section class="screen" id="screen-rag">
+  <p class="screen-sub">חיפוש וקטורי + מיזוג דירוגים (RRF, SIGIR 2009) על מאגר מסמכים — צינור ה-RAG של המחקר.</p>
+
+  <div class="field">
+    <label for="ragQuery">שאילתת חיפוש</label>
+    <input id="ragQuery" type="text" maxlength="5000" placeholder="לדוגמה: השפעת שינויי האקלים" value="השפעת שינויי האקלים על הכלכלה">
+  </div>
+  <div class="field">
+    <label for="ragDocs">מסמכים <small>(שורה לכל מסמך · ריק = מאגר הדוגמה המובנה באנגלית)</small></label>
+    <textarea id="ragDocs" rows="6" placeholder="השאירו ריק לשימוש במאגר המובנה, או הדביקו מסמכים — שורה לכל מסמך"></textarea>
+  </div>
+
+  <div class="row-controls">
+    <div class="field slim">
+      <label for="ragTopK">כמות תוצאות</label>
+      <select id="ragTopK">
+        <option value="3">3</option>
+        <option value="5" selected>5</option>
+        <option value="10">10</option>
+        <option value="">הכול</option>
+      </select>
+    </div>
+    <button class="run-btn" id="ragBtn">חפש</button>
+  </div>
+
+  <p class="note">🛈 הרחבת שאילתות אוטומטית (DictaLM 7B) כבויה בשרת הזה — דורשת GPU. החיפוש הווקטורי ומיזוג הדירוגים פעילים במלואם.</p>
+
+  <div class="loading" id="ragLoading" hidden>
+    <div class="pulse"><i></i><i></i><i></i></div>
+    <span>מחפש…</span>
+  </div>
+
+  <ol class="rank-list" id="ragList" hidden></ol>
+</section>
+
+<!-- ============ BENCHMARK ============ -->
+<section class="screen" id="screen-benchmark">
+  <p class="screen-sub">מבחן קבוע של 20 זוגות משפטים בעברית (פרפרזות, קשורים, לא קשורים, משלב, סמיכות) — בודק כמה טוב המודל מפריד בין רמות דמיון.</p>
+
+  <div class="row-controls">
+    <button class="run-btn" id="benchBtn">הצג בנצ'מרק</button>
+    <button class="ghost-btn" id="benchRefreshBtn" hidden>הרץ מחדש</button>
+    <span class="bench-meta" id="benchMeta"></span>
+  </div>
+
+  <div class="loading" id="benchLoading" hidden>
+    <div class="pulse"><i></i><i></i><i></i></div>
+    <span>מריץ 20 זוגות על המעבד… עד חצי דקה</span>
+  </div>
+
+  <div id="benchResults" hidden>
+    <div class="stat-cards" id="benchStats"></div>
+    <div class="bench-legend">
+      <span class="lg high">דמיון גבוה (צפוי)</span>
+      <span class="lg medium">בינוני</span>
+      <span class="lg low">נמוך</span>
+    </div>
+    <div class="bench-pairs" id="benchPairs"></div>
+  </div>
+</section>
+
+</main>
+
+<footer class="foot">
+  <span>ZehutAI · מנוע מחקר עברי/רב־לשוני · paraphrase-multilingual-mpnet-base-v2</span>
+  <span id="footMem"></span>
+</footer>
+
+<script src="/zehutai/static/app.js"></script>
+</body>
+</html>

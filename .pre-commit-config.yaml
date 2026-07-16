@@ -41,31 +41,7 @@ repos:
     hooks:
       - id: detect-secrets-custom
         name: Detect common secret patterns
-        entry: python -c "
-import re, sys
-patterns = [
-    r'sk-[a-zA-Z0-9_-]{20,}',
-    r'api[_-]?key\\s*[:=]\\s*[\"\\x27][a-zA-Z0-9]',
-    r'password\\s*[:=]\\s*[\"\\x27][^\"\\x27]{8,}',
-    r'secret\\s*[:=]\\s*[\"\\x27][a-zA-Z0-9]',
-    r'token\\s*[:=]\\s*[\"\\x27][a-zA-Z0-9]',
-    r'OPENAI_API_KEY\\s*=\\s*[\"\\x27]sk-',
-    r'ghp_[a-zA-Z0-9]{36}',
-    r'github_pat_[a-zA-Z0-9_]{82}',
-    r'xox[bpors]-[a-zA-Z0-9-]+',
-]
-found = False
-for path in sys.argv[1:]:
-    try:
-        text = open(path, encoding='utf-8', errors='ignore').read()
-    except OSError:
-        continue
-    for pat in patterns:
-        if re.search(pat, text, re.IGNORECASE):
-            print(f'ERROR: Secret pattern [{pat[:30]}...] in {path}')
-            found = True
-sys.exit(1 if found else 0)
-"
+        entry: python scripts/detect_secrets_custom.py
         language: system
-        stages: [commit]
+        stages: [pre-commit]
         files: '(\.py|\.yaml|\.yml|\.toml|\.sh|\.env)$'
