@@ -76,3 +76,6 @@ Thumbs.db
 *.pem
 secrets/
 .claude/
+
+# webapp runtime artifacts
+webapp/benchmark_cache.json
