@@ -157,11 +157,17 @@ _LOADERS = {"mpnet": _load_mpnet, "bert": _load_bert, "roberta": _load_roberta}
 
 
 def _ensure_loading(model: str) -> str:
-    """Trigger a background load if the model is idle. Return current state."""
+    """Trigger a background load if the model is idle (or errored -> retry).
+
+    A previous "error" state is usually a transient network failure while
+    downloading from the HF hub (e.g. 504) -- each new user action gets one
+    fresh retry instead of being stuck on a sticky error.
+    """
     with _state_lock:
         state = MODEL_STATES.get(model)
-        if state == "idle":
+        if state in ("idle", "error"):
             MODEL_STATES[model] = "loading"
+            MODEL_ERRORS.pop(model, None)
             threading.Thread(target=_LOADERS[model], daemon=True).start()
             return "loading"
         return state or "unknown"
