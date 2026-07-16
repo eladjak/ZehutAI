@@ -1,7 +1,22 @@
 # ZehutAI - Progress
 
-## Status: Active (Research/Prototype)
-## Last Updated: 2026-02-18
+## Status: Active (Research/Prototype + Web UI v1 in production)
+## Last Updated: 2026-07-16
+
+## 2026-07-16 — Web UI v1 LIVE (for Yehoshua Dalin)
+- `webapp/` — FastAPI service wrapping the existing engine (no engine rewrite):
+  compare / similarity / rag / benchmark endpoints + dark Hebrew RTL SPA.
+- Deployed on Contabo `/opt/zehutai`, systemd `zehutai-web.service`
+  (127.0.0.1:3980), cloudflared path `hub.eladjak.com/zehutai` (token-gated:
+  `?k=<token>` → HttpOnly cookie; token in `/etc/zehutai-web.env`).
+- mpnet eager-load (~34s startup, service ~1.9GB RAM); BERT/RoBERTa lazy;
+  DictaLM 7B query expansion deferred (CPU-only host).
+- Benchmark on prod CPU: high 0.792 / medium 0.393 / low 0.020 / separation 0.772.
+- Fixed pre-existing repo issues: invalid pre-commit YAML (inline python →
+  `scripts/detect_secrets_custom.py`), missing `.secrets.baseline`, 12 tests
+  patching the wrong module (`embeddings_comparison` vs
+  `zehutai.embeddings_comparison`). Fast suite now 288/288.
+- Assumptions for Yehoshua: see `webapp/README.md`.
 
 ## Current State
 Research project for Hebrew/multilingual text similarity and RAG pipelines.
