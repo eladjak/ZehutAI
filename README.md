@@ -99,6 +99,31 @@ python -m pytest
 ruff check .
 ```
 
+## Web UI — ממשק אינטרנטי (עברית)
+
+בתיקיית [`webapp/`](webapp/) יש ממשק web מלא בעברית (RTL, dark) מעל מנוע המחקר —
+מסך השוואת משפטים (עם מד דמיון מונפש), דירוג דמיון, חיפוש RAG ובנצ'מרק עברי.
+המנוע לא שוכתב: השרת (FastAPI) מייבא את הפונקציות הקיימות כפי שהן.
+
+**הרצה מקומית:**
+
+```bash
+pip install -r requirements.txt fastapi "uvicorn[standard]"
+export ZEHUTAI_TOKEN=dev-token   # Windows: set ZEHUTAI_TOKEN=dev-token
+uvicorn webapp.server:app --port 3980
+# ואז לגלוש אל: http://127.0.0.1:3980/zehutai?k=dev-token
+```
+
+**המופע החי** רץ על השרת של אלעד מאחורי קישור פרטי עם טוקן
+(`https://hub.eladjak.com/zehutai?k=<token>`) — הטוקן נמסר אישית, לא נמצא בריפו.
+עדכון המופע החי לאחר push:
+
+```bash
+cd /opt/zehutai && git pull && systemctl restart zehutai-web
+```
+
+פרטי ארכיטקטורה, endpoints והנחות v1 — ב-[`webapp/README.md`](webapp/README.md).
+
 ## Status
 
 Early-stage research project. See [PROGRESS.md](PROGRESS.md) for current status and next steps.

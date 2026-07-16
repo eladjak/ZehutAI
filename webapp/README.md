@@ -65,7 +65,21 @@ Then add to `/root/.cloudflared/config.yml` (before the hub catch-all):
   service: http://localhost:3980
 ```
 
-`cloudflared tunnel ingress validate && systemctl restart cloudflared-tunnel`
+`cloudflared tunnel --config /root/.cloudflared/config.yml ingress validate && systemctl restart cloudflared-tunnel`
+
+## Update flow (single source of truth = this repo)
+
+The live deployment at `/opt/zehutai` is a plain git clone of
+`github.com/eladjak/ZehutAI` (origin main). To ship an update:
+
+```bash
+cd /opt/zehutai && git pull && systemctl restart zehutai-web
+```
+
+(Static-only changes don't strictly need the restart — files are read from
+disk — but restarting is cheap and unambiguous. Remember to bump the
+`?v=` asset version in `index.html` for CSS/JS changes: Cloudflare caches
+static extensions at the edge.)
 
 ## Assumptions for Yehoshua to validate (v1 scoping)
 
